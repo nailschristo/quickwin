@@ -4,7 +4,7 @@
 QuickWin is a web application that helps users standardize and merge data from multiple file formats (CSV, PDF, images) into a unified schema. Users can define custom schemas and the system will intelligently map and merge data from various sources.
 
 ## Current Development Status
-- **Phase**: Authentication and User Management Complete
+- **Phase**: Core UI Flow Implemented (Job Wizard)
 - **Last Updated**: 2025-08-02
 - **Active Branch**: main
 - **Deployment**: Live on Vercel at https://quickwin-plum.vercel.app
@@ -144,15 +144,18 @@ Common issues and solutions will be documented here as they arise.
 - [x] Database schema with RLS policies
 - [x] Storage buckets configured
 - [x] Deployment to Vercel
-- [ ] Schema creation UI
-- [ ] File upload interface
-- [ ] CSV parsing
-- [ ] PDF parsing
-- [ ] Image OCR
-- [ ] Column mapping UI
-- [ ] AI-assisted mapping
-- [ ] Data merging
-- [ ] Export functionality
-- [x] User dashboard (basic version)
+- [x] Redesigned dashboard with project-based workflow
+- [x] Multi-step job wizard (Schema → Upload → Map → Process)
+- [ ] Schema creation UI (builder interface)
+- [x] File upload interface (drag-and-drop)
+- [ ] CSV parsing (backend)
+- [ ] PDF parsing (backend)
+- [ ] Image OCR (backend)
+- [x] Column mapping UI (with AI confidence scores)
+- [x] AI-assisted mapping (UI ready, needs backend)
+- [ ] Data merging (backend)
+- [ ] Export functionality (backend)
+- [ ] Schema templates library
+- [ ] Recent jobs history
 - [ ] Usage limits
 - [ ] Payment integration (database ready)
