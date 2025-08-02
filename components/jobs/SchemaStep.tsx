@@ -18,7 +18,7 @@ export default function SchemaStep({ jobData, updateJobData, onNext }: SchemaSte
 
   useEffect(() => {
     loadSchemas()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadSchemas = async () => {
     const supabase = createClient()
@@ -170,7 +170,7 @@ export default function SchemaStep({ jobData, updateJobData, onNext }: SchemaSte
         <p className="text-sm text-gray-500 mb-6">Checking your schemas...</p>
       ) : schemas.length === 0 ? (
         <p className="text-sm text-gray-500 mb-6">
-          A schema defines the columns for your output Excel file. Let's create your first one!
+          A schema defines the columns for your output Excel file. Let&apos;s create your first one!
         </p>
       ) : (
         <p className="text-sm text-gray-500 mb-6">
@@ -197,7 +197,7 @@ export default function SchemaStep({ jobData, updateJobData, onNext }: SchemaSte
                   Use Recent Schema
                 </label>
                 <p className="text-xs text-gray-500 mt-1">
-                  Reuse a schema you've created before
+                  Reuse a schema you&apos;ve created before
                 </p>
                 {selectedOption === 'existing' && (
                   <div className="mt-3">

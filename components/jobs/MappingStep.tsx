@@ -48,7 +48,7 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
       })
     })
     setMappings(suggestedMappings)
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleMappingChange = (file: string, schemaColumn: string, sourceColumn: string) => {
     setMappings((prev: any) => ({
