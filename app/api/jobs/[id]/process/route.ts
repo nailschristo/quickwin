@@ -29,19 +29,19 @@ async function processCSVFile(fileId: string, jobId: string, supabase: any) {
 
   // Process CSV file
   const text = await fileData.text()
-  const lines = text.split('\n').filter(line => line.trim())
+  const lines = text.split('\n').filter((line: string) => line.trim())
   
   if (lines.length === 0) {
     throw new Error('CSV file is empty')
   }
 
   // Parse CSV headers
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
+  const headers = lines[0].split(',').map((h: string) => h.trim().replace(/^"|"$/g, ''))
   
   // Parse sample rows (up to 10)
   const sampleRows: Record<string, any>[] = []
   for (let i = 1; i < Math.min(11, lines.length); i++) {
-    const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+    const values = lines[i].split(',').map((v: string) => v.trim().replace(/^"|"$/g, ''))
     const row: Record<string, any> = {}
     headers.forEach((header, idx) => {
       row[header] = values[idx] || ''
@@ -50,15 +50,15 @@ async function processCSVFile(fileId: string, jobId: string, supabase: any) {
   }
 
   // Detect column types
-  const columns = headers.map(header => {
-    const values = sampleRows.map(row => row[header]).filter(v => v)
+  const columns = headers.map((header: string) => {
+    const values = sampleRows.map((row: any) => row[header]).filter((v: any) => v)
     const sampleValues = values.slice(0, 5)
     
     // Simple type detection
     let type = 'text'
-    if (values.every(v => !isNaN(Number(v)) && v !== '')) {
+    if (values.every((v: any) => !isNaN(Number(v)) && v !== '')) {
       type = 'number'
-    } else if (values.every(v => v === 'true' || v === 'false' || v === '')) {
+    } else if (values.every((v: any) => v === 'true' || v === 'false' || v === '')) {
       type = 'boolean'
     }
     
@@ -86,7 +86,7 @@ async function processCSVFile(fileId: string, jobId: string, supabase: any) {
       raw_data: {
         columns: headers,
         shape: [lines.length - 1, headers.length],
-        dtypes: Object.fromEntries(columns.map(c => [c.name, c.type]))
+        dtypes: Object.fromEntries(columns.map((c: any) => [c.name, c.type]))
       }
     })
     .eq('id', fileId)
