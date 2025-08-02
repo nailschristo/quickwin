@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
+  let jobId: string | undefined
+  
   try {
     // Get the request body
     const body = await request.json()
-    const { fileId, jobId } = body
+    const fileId = body.fileId
+    jobId = body.jobId
 
     if (!fileId || !jobId) {
       return NextResponse.json(
@@ -166,12 +169,12 @@ export async function POST(request: NextRequest) {
     console.error('CSV processing error:', error)
     
     // Update job status to failed
-    if (body?.jobId) {
+    if (jobId) {
       const supabase = await createClient()
       await supabase
         .from('jobs')
         .update({ status: 'failed' })
-        .eq('id', body.jobId)
+        .eq('id', jobId)
     }
 
     return NextResponse.json(
