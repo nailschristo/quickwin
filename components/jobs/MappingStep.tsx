@@ -56,13 +56,56 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
         setJobId(newJob.id)
         updateJobData({ jobId: newJob.id })
         
-        // Create job_files records for each uploaded file
-        const fileRecords = jobData.files.map((file: any) => ({
-          job_id: newJob.id,
-          file_name: file.name,
-          file_type: file.name.split('.').pop() || 'unknown',
-          file_url: file.url
-        }))
+        // Move files from temp location to job location and create job_files records
+        const fileRecords: any[] = []
+        
+        for (const file of jobData.files) {
+          // Move file from temp location to job location
+          const oldPath = file.path
+          const newPath = `${newJob.id}/${file.name}`
+          
+          console.log('Moving file from:', oldPath, 'to:', newPath)
+          
+          // Copy file to new location
+          const { data: downloadData, error: downloadError } = await supabase.storage
+            .from('job-files')
+            .download(oldPath)
+            
+          if (downloadError) {
+            console.error('Download error:', downloadError)
+            continue
+          }
+          
+          // Upload to new location
+          const { error: uploadError } = await supabase.storage
+            .from('job-files')
+            .upload(newPath, downloadData, {
+              cacheControl: '3600',
+              upsert: false
+            })
+            
+          if (uploadError) {
+            console.error('Upload error:', uploadError)
+            continue
+          }
+          
+          // Delete old file
+          await supabase.storage
+            .from('job-files')
+            .remove([oldPath])
+          
+          // Get new public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('job-files')
+            .getPublicUrl(newPath)
+          
+          fileRecords.push({
+            job_id: newJob.id,
+            file_name: file.name,
+            file_type: file.name.split('.').pop() || 'unknown',
+            file_url: publicUrl
+          })
+        }
         
         const { data: jobFiles, error: filesError } = await supabase
           .from('job_files')
@@ -73,18 +116,20 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
         
         // Process each file to detect columns
         const detectedCols: any[] = []
+        console.log('JobFiles created:', jobFiles)
+        
         for (const jobFile of jobFiles) {
           // For now, we'll process CSV files client-side as a demo
           if (jobFile.file_type === 'csv') {
             try {
               console.log('Processing file:', jobFile.file_name, 'URL:', jobFile.file_url)
+              console.log('Full jobFile object:', jobFile)
               
-              // Extract the path from the file URL
-              const urlParts = jobFile.file_url.split('/')
-              const fileName = urlParts[urlParts.length - 1]
-              const path = `${newJob.id}/${fileName}`
+              // The file should already be at the correct path
+              const path = `${newJob.id}/${jobFile.file_name}`
               
               console.log('Downloading from path:', path)
+              console.log('Storage bucket: job-files')
               
               const { data: fileData, error: downloadError } = await supabase.storage
                 .from('job-files')

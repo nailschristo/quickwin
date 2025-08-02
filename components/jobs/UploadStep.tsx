@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
+import { createClient } from '@/lib/supabase/client'
 
 interface UploadStepProps {
   jobData: any
@@ -13,6 +14,8 @@ interface UploadStepProps {
 export default function UploadStep({ jobData, updateJobData, onNext, onBack }: UploadStepProps) {
   const [files, setFiles] = useState<File[]>(jobData.files || [])
   const [uploading, setUploading] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>(jobData.uploadedFiles || [])
+  const supabase = createClient()
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setFiles(prev => [...prev, ...acceptedFiles])
@@ -45,11 +48,66 @@ export default function UploadStep({ jobData, updateJobData, onNext, onBack }: U
     if (files.length === 0) return
 
     setUploading(true)
-    // In a real implementation, you would upload files to storage here
-    // For now, we'll just update the job data
-    updateJobData({ files })
-    setUploading(false)
-    onNext()
+    
+    try {
+      // Generate a temporary job ID for file organization
+      const tempJobId = `temp_${Date.now()}`
+      const uploadedFilesData: any[] = []
+      
+      // Upload each file to Supabase Storage
+      for (const file of files) {
+        const filePath = `${tempJobId}/${file.name}`
+        
+        console.log('Uploading file:', file.name, 'to path:', filePath)
+        
+        const { data, error } = await supabase.storage
+          .from('job-files')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          })
+          
+        if (error) {
+          console.error('Upload error:', error)
+          alert(`Failed to upload ${file.name}: ${error.message}`)
+          continue
+        }
+        
+        console.log('Upload successful:', data)
+        
+        // Get the public URL for the uploaded file
+        const { data: { publicUrl } } = supabase.storage
+          .from('job-files')
+          .getPublicUrl(filePath)
+        
+        uploadedFilesData.push({
+          name: file.name,
+          url: publicUrl,
+          path: filePath,
+          size: file.size,
+          type: file.type
+        })
+      }
+      
+      if (uploadedFilesData.length === 0) {
+        alert('No files were uploaded successfully')
+        setUploading(false)
+        return
+      }
+      
+      // Update job data with uploaded files
+      updateJobData({ 
+        files: uploadedFilesData,
+        tempJobId 
+      })
+      
+      onNext()
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert('Failed to upload files. Please try again.')
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
