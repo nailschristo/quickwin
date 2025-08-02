@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 import * as XLSX from 'xlsx'
 
 export async function GET(
@@ -11,8 +10,7 @@ export async function GET(
     const jobId = params.id
 
     // Verify user is authenticated
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
+    const supabase = await createClient()
     
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {

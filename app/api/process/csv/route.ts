@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,8 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user is authenticated
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
+    const supabase = await createClient()
     
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -169,8 +167,7 @@ export async function POST(request: NextRequest) {
     
     // Update job status to failed
     if (body?.jobId) {
-      const cookieStore = cookies()
-      const supabase = createClient(cookieStore)
+      const supabase = await createClient()
       await supabase
         .from('jobs')
         .update({ status: 'failed' })
