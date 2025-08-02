@@ -29,15 +29,6 @@ export default async function SchemaDetailPage({ params }: { params: { id: strin
   // Sort columns by position
   const sortedColumns = schema.schema_columns?.sort((a: any, b: any) => a.position - b.position) || []
 
-  const dataTypeLabels: Record<string, string> = {
-    text: 'Text',
-    number: 'Number',
-    date: 'Date',
-    email: 'Email',
-    phone: 'Phone',
-    url: 'URL',
-    boolean: 'Yes/No'
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -111,12 +102,6 @@ export default async function SchemaDetailPage({ params }: { params: { id: strin
                         Column Name
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Data Type
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Required
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Sample Values
                       </th>
                     </tr>
@@ -130,21 +115,11 @@ export default async function SchemaDetailPage({ params }: { params: { id: strin
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {column.name}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {dataTypeLabels[column.data_type] || column.data_type}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {column.is_required ? (
-                            <span className="text-green-600">✓ Required</span>
-                          ) : (
-                            <span className="text-gray-400">Optional</span>
-                          )}
-                        </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
                           {column.sample_values ? (
                             <span className="text-xs">
-                              {JSON.parse(column.sample_values).slice(0, 2).join(', ')}
-                              {JSON.parse(column.sample_values).length > 2 && '...'}
+                              {JSON.parse(column.sample_values).slice(0, 3).join(', ')}
+                              {JSON.parse(column.sample_values).length > 3 && '...'}
                             </span>
                           ) : (
                             <span className="text-gray-400">-</span>

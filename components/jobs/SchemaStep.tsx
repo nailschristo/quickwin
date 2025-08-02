@@ -78,8 +78,7 @@ export default function SchemaStep({ jobData, updateJobData, onNext }: SchemaSte
         const columnsToInsert = templateColumns.map(col => ({
           schema_id: newSchema.id,
           name: col.name,
-          data_type: col.data_type,
-          is_required: col.is_required,
+          data_type: 'text', // All columns are text for Excel output
           position: col.position,
           sample_values: col.sample_values
         }))

@@ -8,8 +8,6 @@ import { createClient } from '@/lib/supabase/client'
 interface SchemaColumn {
   id: string
   name: string
-  data_type: string
-  is_required: boolean
   position: number
 }
 
@@ -18,27 +16,16 @@ export default function NewSchemaPage() {
   const [schemaName, setSchemaName] = useState('')
   const [schemaDescription, setSchemaDescription] = useState('')
   const [columns, setColumns] = useState<SchemaColumn[]>([
-    { id: '1', name: '', data_type: 'text', is_required: false, position: 0 }
+    { id: '1', name: '', position: 0 }
   ])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const dataTypes = [
-    { value: 'text', label: 'Text' },
-    { value: 'number', label: 'Number' },
-    { value: 'date', label: 'Date' },
-    { value: 'email', label: 'Email' },
-    { value: 'phone', label: 'Phone' },
-    { value: 'url', label: 'URL' },
-    { value: 'boolean', label: 'Yes/No' },
-  ]
 
   const addColumn = () => {
     const newColumn: SchemaColumn = {
       id: Date.now().toString(),
       name: '',
-      data_type: 'text',
-      is_required: false,
       position: columns.length
     }
     setColumns([...columns, newColumn])
@@ -107,8 +94,7 @@ export default function NewSchemaPage() {
       const columnsToInsert = validColumns.map((col, index) => ({
         schema_id: schema.id,
         name: col.name,
-        data_type: col.data_type,
-        is_required: col.is_required,
+        data_type: 'text', // All columns are text for Excel output
         position: index
       }))
 
@@ -195,7 +181,10 @@ export default function NewSchemaPage() {
           {/* Schema Columns */}
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Schema Columns</h2>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Schema Columns</h2>
+                <p className="text-sm text-gray-500 mt-1">Define the column headers for your output Excel file</p>
+              </div>
               <button
                 onClick={addColumn}
                 className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
@@ -231,35 +220,13 @@ export default function NewSchemaPage() {
                     </button>
                   </div>
 
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <input
-                      type="text"
-                      value={column.name}
-                      onChange={(e) => updateColumn(column.id, 'name', e.target.value)}
-                      placeholder="Column name"
-                      className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                    <select
-                      value={column.data_type}
-                      onChange={(e) => updateColumn(column.id, 'data_type', e.target.value)}
-                      className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    >
-                      {dataTypes.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
-                    <div className="flex items-center space-x-3">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={column.is_required}
-                          onChange={(e) => updateColumn(column.id, 'is_required', e.target.checked)}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">Required</span>
-                      </label>
-                    </div>
-                  </div>
+                  <input
+                    type="text"
+                    value={column.name}
+                    onChange={(e) => updateColumn(column.id, 'name', e.target.value)}
+                    placeholder="Column name (e.g., Invoice Number, Customer Name, Amount)"
+                    className="flex-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
 
                   <button
                     onClick={() => removeColumn(column.id)}
