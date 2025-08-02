@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
     
     // Parse sample rows (up to 10)
-    const sampleRows = []
+    const sampleRows: Record<string, any>[] = []
     for (let i = 1; i < Math.min(11, lines.length); i++) {
       const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''))
       const row: Record<string, any> = {}
