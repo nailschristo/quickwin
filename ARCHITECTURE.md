@@ -64,11 +64,19 @@ QuickWin is a web-based SaaS application that enables users to standardize and m
 
 ### Core Entities
 ```sql
--- Users (managed by Supabase Auth)
+-- Users (managed by Supabase Auth + custom profile)
 users {
   id: uuid (PK)
   email: string
+  full_name: string
+  avatar_url: string
+  stripe_customer_id: string
+  stripe_subscription_id: string
+  subscription_status: enum
+  subscription_tier: enum
+  trial_ends_at: timestamp
   created_at: timestamp
+  updated_at: timestamp
 }
 
 -- User-defined schemas

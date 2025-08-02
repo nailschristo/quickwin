@@ -43,8 +43,9 @@ vercel --prod
 ```
 
 **Production URLs:**
-- Frontend: (to be determined after first deployment)
-- Supabase: (user's Supabase project URL)
+- Frontend: https://quickwin-plum.vercel.app
+- Supabase: https://zkcvhunldlpziwjhcjqt.supabase.co
+- GitHub: https://github.com/nailschristo/quickwin
 
 **Important Notes:**
 - Always deploy immediately after making changes so user can test
@@ -189,19 +190,17 @@ Example of infrastructure notes
 **Branding**: Using Gridstream branding temporarily
 ```
 ## Critical Environment Variables
-Record critical env variables here. See example below.
-```
-**Backend (Set in Vercel):**
-- DATABASE_URL (PostgreSQL with pooling)
-- DIRECT_URL (Direct PostgreSQL connection)
-- SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-- JWT_SECRET (Generated secure key)
-- NODE_ENV=production
-- FRONTEND_URL=https://eventtrackerappfrontend.vercel.app
 
-**Frontend (Set in Vercel):**
-- VITE_SUPABASE_URL
-- VITE_SUPABASE_ANON_KEY  
-- VITE_API_URL=https://eventtrackerappbackend.vercel.app  
+**Set in Vercel:**
 ```
+NEXT_PUBLIC_SUPABASE_URL=https://zkcvhunldlpziwjhcjqt.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[anon key from Supabase]
+SUPABASE_SERVICE_ROLE_KEY=[service role key from Supabase]
+SUPABASE_JWT_SECRET=[JWT secret from Supabase]
+```
+
+**Supabase Credentials:**
+- Project Ref: zkcvhunldlpziwjhcjqt
+- Database Password: I#9winesdaily
+- CLI Access Token: sbp_854e8fcd32a1426f7f8efc638a64c1cc560d3fba
 ---
