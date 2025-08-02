@@ -83,7 +83,8 @@ export default function NewSchemaPage() {
         .insert({
           name: schemaName,
           description: schemaDescription,
-          user_id: user.id
+          user_id: user.id,
+          source: 'manual'
         })
         .select()
         .single()
