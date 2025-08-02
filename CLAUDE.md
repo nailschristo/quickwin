@@ -42,11 +42,12 @@ Before modifying imports: verify the actual path exists
 
 ## Documentation Version Control
 
-**Current Version**: v1.3 (2025-08-02)  
-**Last Updated**: Updated deployment rules to follow Git-based CI/CD workflow
-**Next Review**: When backend processing is implemented
+**Current Version**: v1.4 (2025-08-02)  
+**Last Updated**: Added Backend Processing section with API implementation details
+**Next Review**: When PDF/Image processing is implemented
 
 ### Recent Documentation Changes
+- **v1.4**: Added Backend Processing section with file processing flow and API details
 - **v1.3**: Updated Deployment Rules to use proper Git-based workflow instead of direct Vercel deployment
 - **v1.2**: Added Navigation Guidelines section with Header component usage and navigation rules
 - **v1.1**: Added CRITICAL BEHAVIOR RULES section to ensure proper checking before creating/modifying
@@ -276,6 +277,36 @@ Example of infrastructure notes
 **Supabase**: Project: eventtracker (us-east-1)  
 **Branding**: Using Gridstream branding temporarily
 ```
+## Backend Processing Implementation
+
+### File Processing Flow
+1. **Job Creation**: Jobs are created when users reach the mapping step
+2. **File Upload**: Files are stored in Supabase Storage bucket 'job-files'
+3. **Column Detection**: CSV files are processed to extract headers and sample data
+4. **Mapping Storage**: User-selected column mappings are saved to database
+5. **Processing**: Files are processed according to schema and mappings
+6. **Export**: Merged data is exported as Excel file for download
+
+### API Endpoints
+- **POST /api/jobs/[id]/process** - Orchestrates file processing
+- **POST /api/process/csv** - Processes CSV files (implemented)
+- **GET /api/jobs/[id]/download** - Downloads merged Excel file
+- **POST /api/process/excel** - Process Excel files (TODO)
+- **POST /api/process/pdf** - Process PDF files (TODO)
+- **POST /api/process/image** - Process images with OCR (TODO)
+
+### Important Implementation Notes
+- Server-side `createClient()` doesn't take parameters - it handles cookies internally
+- CSV processing currently happens client-side for column detection
+- Job status tracking: 'pending' → 'processing' → 'completed' or 'failed'
+- Excel export uses xlsx package to generate files
+- Column mappings support confidence scores for AI suggestions
+
+### Schema Source Tracking
+- Schemas now track their source: 'manual', 'template', or 'import'
+- Only manually created schemas appear in "Use Recent Schema" option
+- `last_used_at` is automatically updated when jobs are created
+
 ## Critical Environment Variables
 
 **Set in Vercel:**

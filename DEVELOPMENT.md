@@ -4,7 +4,7 @@
 QuickWin is a web application that helps users standardize and merge data from multiple file formats (CSV, PDF, images) into a unified schema. Users can define custom schemas and the system will intelligently map and merge data from various sources.
 
 ## Current Development Status
-- **Phase**: Core UI Flow Implemented (Job Wizard)
+- **Phase**: Backend Processing Implemented (CSV Support)
 - **Last Updated**: 2025-08-02
 - **Active Branch**: main
 - **Deployment**: Live on Vercel at https://quickwin-plum.vercel.app
@@ -48,21 +48,27 @@ QuickWin is a web application that helps users standardize and merge data from m
 - Optimistic UI updates
 
 ## Database Schema
-### Tables (to be implemented)
-- `users` - User accounts
-- `schemas` - User-defined schemas
+### Tables (implemented)
+- `users` - User accounts (Supabase Auth)
+- `schemas` - User-defined schemas with source tracking
 - `schema_columns` - Columns for each schema
-- `jobs` - Processing jobs
+- `jobs` - Processing jobs with status tracking
 - `job_files` - Files uploaded for each job
-- `mappings` - Column mappings for jobs
+- `column_mappings` - Column mappings for jobs
+- `schema_templates` - Pre-built schema templates
+- `schema_template_columns` - Columns for templates
+- `user_preferences` - User settings and preferences
 
 ## API Design
+### Endpoints (implemented)
+- `/api/auth/*` - Authentication endpoints (Supabase)
+- `/api/jobs/[id]/process` - Trigger job processing
+- `/api/jobs/[id]/download` - Download processed Excel file
+- `/api/process/csv` - Process CSV files
 ### Endpoints (to be implemented)
-- `/api/auth/*` - Authentication endpoints
-- `/api/schemas/*` - Schema CRUD operations
-- `/api/jobs/*` - Job processing
-- `/api/files/*` - File upload/download
-- `/api/process/*` - File processing endpoints
+- `/api/process/excel` - Process Excel files
+- `/api/process/pdf` - Process PDF files
+- `/api/process/image` - Process images with OCR
 
 ## Testing Strategy
 - Unit tests for utility functions
@@ -154,15 +160,16 @@ Common issues and solutions will be documented here as they arise.
 - [x] Deployment to Vercel
 - [x] Redesigned dashboard with project-based workflow
 - [x] Multi-step job wizard (Schema → Upload → Map → Process)
-- [ ] Schema creation UI (builder interface)
+- [x] Schema creation UI (builder interface)
 - [x] File upload interface (drag-and-drop)
-- [ ] CSV parsing (backend)
+- [x] CSV parsing (backend)
+- [ ] Excel parsing (backend)
 - [ ] PDF parsing (backend)
 - [ ] Image OCR (backend)
 - [x] Column mapping UI (with AI confidence scores)
-- [x] AI-assisted mapping (UI ready, needs backend)
-- [ ] Data merging (backend)
-- [ ] Export functionality (backend)
+- [x] AI-assisted mapping (basic fuzzy matching)
+- [x] Data merging (backend)
+- [x] Export functionality (Excel download)
 - [ ] Schema templates library
 - [ ] Recent jobs history
 - [ ] Usage limits
