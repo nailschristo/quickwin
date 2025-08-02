@@ -278,8 +278,11 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
 
       {/* Mapping Tables */}
       <div className="space-y-6">
-        {detectedColumns.map((file) => (
-          <div key={file.fileId} className="border rounded-lg p-4">
+        {console.log('Rendering detectedColumns:', detectedColumns)}
+        {detectedColumns.map((file, fileIndex) => {
+          console.log(`Rendering file ${fileIndex}:`, file.file, 'with columns:', file.columns)
+          return (
+          <div key={`${file.fileId}-${fileIndex}`} className="border rounded-lg p-4">
             <h3 className="font-medium text-gray-900 mb-3 flex items-center">
               <svg className="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
@@ -323,7 +326,8 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
               ))}
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* AI Assistance Note */}
