@@ -76,21 +76,40 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
         for (const jobFile of jobFiles) {
           // For now, we'll process CSV files client-side as a demo
           if (jobFile.file_type === 'csv') {
-            const { data: fileData } = await supabase.storage
-              .from('job-files')
-              .download(jobFile.file_url.split('job-files/')[1])
-            
-            if (fileData) {
-              const text = await fileData.text()
-              const lines = text.split('\n').filter(line => line.trim())
-              if (lines.length > 0) {
-                const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
-                detectedCols.push({
-                  file: jobFile.file_name,
-                  fileId: jobFile.id,
-                  columns: headers
-                })
+            try {
+              console.log('Processing file:', jobFile.file_name, 'URL:', jobFile.file_url)
+              
+              // Extract the path from the file URL
+              const urlParts = jobFile.file_url.split('/')
+              const fileName = urlParts[urlParts.length - 1]
+              const path = `${newJob.id}/${fileName}`
+              
+              console.log('Downloading from path:', path)
+              
+              const { data: fileData, error: downloadError } = await supabase.storage
+                .from('job-files')
+                .download(path)
+              
+              if (downloadError) {
+                console.error('Download error:', downloadError)
+                continue
               }
+              
+              if (fileData) {
+                const text = await fileData.text()
+                const lines = text.split('\n').filter(line => line.trim())
+                if (lines.length > 0) {
+                  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
+                  console.log('Detected headers:', headers)
+                  detectedCols.push({
+                    file: jobFile.file_name,
+                    fileId: jobFile.id,
+                    columns: headers
+                  })
+                }
+              }
+            } catch (error) {
+              console.error('Error processing file:', jobFile.file_name, error)
             }
           }
         }
