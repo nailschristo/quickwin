@@ -58,7 +58,7 @@ export default async function DashboardPage() {
         <div className="mt-8 rounded-lg bg-white p-6 shadow">
           <h2 className="text-lg font-semibold text-gray-900">Welcome, {user.email}</h2>
           <p className="mt-2 text-gray-600">
-            You're all set up! Start by creating a schema to define the structure of your data.
+            You&apos;re all set up! Start by creating a schema to define the structure of your data.
           </p>
         </div>
       </main>
