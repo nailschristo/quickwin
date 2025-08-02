@@ -43,7 +43,7 @@ async function processCSVFile(fileId: string, jobId: string, supabase: any) {
   for (let i = 1; i < Math.min(11, lines.length); i++) {
     const values = lines[i].split(',').map((v: string) => v.trim().replace(/^"|"$/g, ''))
     const row: Record<string, any> = {}
-    headers.forEach((header, idx) => {
+    headers.forEach((header: string, idx: number) => {
       row[header] = values[idx] || ''
     })
     sampleRows.push(row)
