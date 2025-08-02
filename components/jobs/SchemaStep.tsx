@@ -32,7 +32,7 @@ export default function SchemaStep({ jobData, updateJobData, onNext }: SchemaSte
     setLoading(false)
   }
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedOption === 'existing' && selectedSchemaId) {
       const schema = schemas.find(s => s.id === selectedSchemaId)
       updateJobData({ 
@@ -43,15 +43,79 @@ export default function SchemaStep({ jobData, updateJobData, onNext }: SchemaSte
     } else if (selectedOption === 'new') {
       // Navigate to schema builder
       window.location.href = '/schemas/new?redirect=/jobs/new'
+    } else if (selectedOption === 'template' && selectedTemplateId) {
+      // Create schema from template
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) return
+      
+      const template = templates.find(t => t.id === selectedTemplateId)
+      if (!template) return
+      
+      // Fetch template columns
+      const { data: templateColumns } = await supabase
+        .from('schema_template_columns')
+        .select('*')
+        .eq('template_id', selectedTemplateId)
+        .order('position')
+      
+      // Create new schema from template
+      const { data: newSchema, error: schemaError } = await supabase
+        .from('schemas')
+        .insert({
+          name: template.name,
+          description: template.description,
+          user_id: user.id
+        })
+        .select()
+        .single()
+      
+      if (schemaError || !newSchema) return
+      
+      // Create columns for the new schema
+      if (templateColumns && templateColumns.length > 0) {
+        const columnsToInsert = templateColumns.map(col => ({
+          schema_id: newSchema.id,
+          name: col.name,
+          data_type: col.data_type,
+          is_required: col.is_required,
+          position: col.position,
+          sample_values: col.sample_values
+        }))
+        
+        await supabase
+          .from('schema_columns')
+          .insert(columnsToInsert)
+      }
+      
+      updateJobData({ 
+        schemaId: newSchema.id,
+        schemaName: newSchema.name
+      })
+      onNext()
     }
   }
 
-  const templates = [
-    { id: 'invoice', name: 'Invoice Processing', description: 'Extract data from invoices', icon: '📄' },
-    { id: 'contacts', name: 'Contact List', description: 'Merge contact information', icon: '👥' },
-    { id: 'inventory', name: 'Inventory Management', description: 'Standardize product data', icon: '📦' },
-    { id: 'financial', name: 'Financial Reports', description: 'Consolidate financial data', icon: '💰' },
-  ]
+  const [templates, setTemplates] = useState<any[]>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
+  
+  useEffect(() => {
+    loadTemplates()
+  }, [])
+
+  const loadTemplates = async () => {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('schema_templates')
+      .select('*')
+      .eq('is_public', true)
+      .order('name')
+    
+    if (data) {
+      setTemplates(data)
+    }
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
@@ -123,9 +187,14 @@ export default function SchemaStep({ jobData, updateJobData, onNext }: SchemaSte
                   {templates.map((template) => (
                     <div
                       key={template.id}
-                      className="flex items-start p-3 border border-gray-200 rounded-md hover:border-indigo-300 hover:bg-gray-50 cursor-pointer"
+                      onClick={() => setSelectedTemplateId(template.id)}
+                      className={`flex items-start p-3 border rounded-md cursor-pointer transition-all ${
+                        selectedTemplateId === template.id
+                          ? 'border-indigo-600 bg-indigo-50'
+                          : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
+                      }`}
                     >
-                      <span className="text-2xl mr-3">{template.icon}</span>
+                      <span className="text-2xl mr-3">{template.icon || '📋'}</span>
                       <div>
                         <p className="text-sm font-medium text-gray-900">{template.name}</p>
                         <p className="text-xs text-gray-500">{template.description}</p>
@@ -191,7 +260,10 @@ export default function SchemaStep({ jobData, updateJobData, onNext }: SchemaSte
         </button>
         <button
           onClick={handleContinue}
-          disabled={selectedOption === 'existing' && !selectedSchemaId}
+          disabled={
+            (selectedOption === 'existing' && !selectedSchemaId) ||
+            (selectedOption === 'template' && !selectedTemplateId)
+          }
           className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Next: Upload Files
