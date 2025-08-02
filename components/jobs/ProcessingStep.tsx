@@ -16,10 +16,9 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Simulate processing
     const processFiles = async () => {
       try {
-        // Simulate progress updates
+        // Start progress animation
         const progressInterval = setInterval(() => {
           setProgress(prev => {
             if (prev >= 90) {
@@ -30,21 +29,37 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
           })
         }, 500)
 
-        // Simulate processing time
-        await new Promise(resolve => setTimeout(resolve, 5000))
+        // Call the processing API
+        const response = await fetch(`/api/jobs/${jobData.jobId}/process`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Processing failed')
+        }
+
+        const result = await response.json()
         
         clearInterval(progressInterval)
         setProgress(100)
         setStatus('completed')
-        setDownloadUrl('/api/download/sample.xlsx') // Mock download URL
-      } catch (error) {
+        
+        // Set download URL for the processed job
+        setDownloadUrl(`/api/jobs/${jobData.jobId}/download`)
+      } catch (error: any) {
         setStatus('failed')
-        setError('An error occurred while processing your files.')
+        setError(error.message || 'An error occurred while processing your files.')
       }
     }
 
-    processFiles()
-  }, [])
+    if (jobData.jobId) {
+      processFiles()
+    }
+  }, [jobData.jobId])
 
   const getStatusIcon = () => {
     if (status === 'processing') {
@@ -140,12 +155,16 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
             </div>
 
             {/* Download Button */}
-            <button className="inline-flex items-center px-6 py-3 text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors">
+            <a 
+              href={downloadUrl || '#'}
+              download
+              className="inline-flex items-center px-6 py-3 text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
+            >
               <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Download Results
-            </button>
+            </a>
           </>
         )}
 

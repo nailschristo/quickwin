@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface MappingStepProps {
   jobData: any
@@ -12,49 +13,127 @@ interface MappingStepProps {
 export default function MappingStep({ jobData, updateJobData, onNext, onBack }: MappingStepProps) {
   const [mappings, setMappings] = useState<any>({})
   const [processing, setProcessing] = useState(false)
+  const [schemaColumns, setSchemaColumns] = useState<any[]>([])
+  const [detectedColumns, setDetectedColumns] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [jobId, setJobId] = useState<string | null>(null)
+  const supabase = createClient()
 
-  // Mock schema columns - in real app, fetch from database
-  const schemaColumns = [
-    { name: 'Invoice Number', type: 'text', required: true },
-    { name: 'Date', type: 'date', required: true },
-    { name: 'Vendor Name', type: 'text', required: true },
-    { name: 'Amount', type: 'number', required: true },
-    { name: 'Description', type: 'text', required: false },
-    { name: 'Category', type: 'text', required: false },
-  ]
-
-  // Mock detected columns from files - in real app, parse files
-  const detectedColumns = [
-    { file: 'invoice1.csv', columns: ['inv_num', 'date', 'vendor', 'total', 'notes'] },
-    { file: 'invoice2.pdf', columns: ['Invoice #', 'Date', 'Company', 'Total Amount', 'Description'] },
-  ]
-
-  // Mock AI-suggested mappings
+  // Load schema columns and process files
   useEffect(() => {
-    const suggestedMappings: any = {}
-    detectedColumns.forEach((file) => {
-      suggestedMappings[file.file] = {}
-      schemaColumns.forEach((schemaCol) => {
-        // Simple fuzzy matching logic
-        const match = file.columns.find(col => 
-          col.toLowerCase().includes(schemaCol.name.toLowerCase().split(' ')[0])
-        )
-        if (match) {
-          suggestedMappings[file.file][schemaCol.name] = {
-            source: match,
-            confidence: 0.85
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        
+        // Fetch schema columns
+        const { data: schemaData } = await supabase
+          .from('schema_columns')
+          .select('*')
+          .eq('schema_id', jobData.schemaId)
+          .order('position')
+        
+        if (schemaData) {
+          setSchemaColumns(schemaData)
+        }
+        
+        // Create job record
+        const { data: newJob, error: jobError } = await supabase
+          .from('jobs')
+          .insert({
+            user_id: user.id,
+            schema_id: jobData.schemaId,
+            status: 'pending'
+          })
+          .select()
+          .single()
+        
+        if (jobError) throw jobError
+        
+        setJobId(newJob.id)
+        updateJobData({ jobId: newJob.id })
+        
+        // Create job_files records for each uploaded file
+        const fileRecords = jobData.files.map((file: any) => ({
+          job_id: newJob.id,
+          file_name: file.name,
+          file_type: file.name.split('.').pop() || 'unknown',
+          file_url: file.url
+        }))
+        
+        const { data: jobFiles, error: filesError } = await supabase
+          .from('job_files')
+          .insert(fileRecords)
+          .select()
+        
+        if (filesError) throw filesError
+        
+        // Process each file to detect columns
+        const detectedCols: any[] = []
+        for (const jobFile of jobFiles) {
+          // For now, we'll process CSV files client-side as a demo
+          if (jobFile.file_type === 'csv') {
+            const { data: fileData } = await supabase.storage
+              .from('job-files')
+              .download(jobFile.file_url.split('job-files/')[1])
+            
+            if (fileData) {
+              const text = await fileData.text()
+              const lines = text.split('\n').filter(line => line.trim())
+              if (lines.length > 0) {
+                const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
+                detectedCols.push({
+                  file: jobFile.file_name,
+                  fileId: jobFile.id,
+                  columns: headers
+                })
+              }
+            }
           }
         }
-      })
-    })
-    setMappings(suggestedMappings)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+        
+        setDetectedColumns(detectedCols)
+        
+        // Generate AI-suggested mappings
+        const suggestedMappings: any = {}
+        detectedCols.forEach((file) => {
+          suggestedMappings[file.fileId] = {}
+          schemaData?.forEach((schemaCol: any) => {
+            // Simple fuzzy matching logic
+            const match = file.columns.find((col: string) => 
+              col.toLowerCase().includes(schemaCol.name.toLowerCase().split(' ')[0]) ||
+              schemaCol.name.toLowerCase().includes(col.toLowerCase())
+            )
+            if (match) {
+              suggestedMappings[file.fileId][schemaCol.name] = {
+                source: match,
+                confidence: 0.85
+              }
+            }
+          })
+        })
+        setMappings(suggestedMappings)
+        
+      } catch (error) {
+        console.error('Error loading data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    if (jobData.schemaId && jobData.files.length > 0) {
+      loadData()
+    }
+  }, [jobData.schemaId, jobData.files]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleMappingChange = (file: string, schemaColumn: string, sourceColumn: string) => {
+  const handleMappingChange = (fileId: string, schemaColumn: string, sourceColumn: string) => {
     setMappings((prev: any) => ({
       ...prev,
-      [file]: {
-        ...prev[file],
+      [fileId]: {
+        ...prev[fileId],
         [schemaColumn]: {
           source: sourceColumn,
           confidence: 1.0 // Manual mapping has 100% confidence
@@ -63,15 +142,62 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
     }))
   }
 
-  const handleContinue = () => {
-    updateJobData({ mappings })
-    onNext()
+  const handleContinue = async () => {
+    setProcessing(true)
+    try {
+      // Save column mappings to database
+      const mappingRecords: any[] = []
+      
+      Object.entries(mappings).forEach(([fileId, fileMappings]: any) => {
+        Object.entries(fileMappings).forEach(([targetColumn, mapping]: any) => {
+          if (mapping.source) {
+            mappingRecords.push({
+              job_id: jobId,
+              file_id: fileId,
+              source_column: mapping.source,
+              target_column: targetColumn,
+              confidence: mapping.confidence,
+              mapping_type: mapping.confidence === 1.0 ? 'manual' : 'ai'
+            })
+          }
+        })
+      })
+      
+      if (mappingRecords.length > 0) {
+        const { error } = await supabase
+          .from('column_mappings')
+          .insert(mappingRecords)
+        
+        if (error) throw error
+      }
+      
+      updateJobData({ mappings })
+      onNext()
+    } catch (error) {
+      console.error('Error saving mappings:', error)
+    } finally {
+      setProcessing(false)
+    }
   }
 
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 0.8) return 'text-green-600'
     if (confidence >= 0.6) return 'text-yellow-600'
     return 'text-red-600'
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="flex items-center justify-center py-12">
+          <svg className="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span className="ml-3 text-gray-600">Analyzing files...</span>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -86,7 +212,7 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
       {/* Mapping Tables */}
       <div className="space-y-6">
         {detectedColumns.map((file) => (
-          <div key={file.file} className="border rounded-lg p-4">
+          <div key={file.fileId} className="border rounded-lg p-4">
             <h3 className="font-medium text-gray-900 mb-3 flex items-center">
               <svg className="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
@@ -103,7 +229,6 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
                 <div key={schemaCol.name} className="grid grid-cols-3 gap-4 items-center py-2 border-b last:border-0">
                   <div>
                     <span className="text-sm font-medium text-gray-900">{schemaCol.name}</span>
-                    {schemaCol.required && <span className="text-red-500 ml-1">*</span>}
                   </div>
                   <div className="text-center">
                     <svg className="h-5 w-5 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -112,18 +237,18 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
                   </div>
                   <div className="flex items-center space-x-2">
                     <select
-                      value={mappings[file.file]?.[schemaCol.name]?.source || ''}
-                      onChange={(e) => handleMappingChange(file.file, schemaCol.name, e.target.value)}
+                      value={mappings[file.fileId]?.[schemaCol.name]?.source || ''}
+                      onChange={(e) => handleMappingChange(file.fileId, schemaCol.name, e.target.value)}
                       className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                     >
                       <option value="">-- Not mapped --</option>
-                      {file.columns.map((col) => (
+                      {file.columns.map((col: string) => (
                         <option key={col} value={col}>{col}</option>
                       ))}
                     </select>
-                    {mappings[file.file]?.[schemaCol.name] && (
-                      <span className={`text-xs ${getConfidenceColor(mappings[file.file][schemaCol.name].confidence)}`}>
-                        {Math.round(mappings[file.file][schemaCol.name].confidence * 100)}%
+                    {mappings[file.fileId]?.[schemaCol.name] && (
+                      <span className={`text-xs ${getConfidenceColor(mappings[file.fileId][schemaCol.name].confidence)}`}>
+                        {Math.round(mappings[file.fileId][schemaCol.name].confidence * 100)}%
                       </span>
                     )}
                   </div>
@@ -160,9 +285,10 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
         </button>
         <button
           onClick={handleContinue}
-          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700"
+          disabled={processing}
+          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Process Files
+          {processing ? 'Saving...' : 'Process Files'}
         </button>
       </div>
     </div>
