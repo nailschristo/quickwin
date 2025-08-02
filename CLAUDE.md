@@ -6,7 +6,7 @@
 1. **Reference this file (CLAUDE.md)** for deployment rules and AI guidelines
 2. **Read DEVELOPMENT.md** for comprehensive development guidelines  
 3. **Never ask about deployment procedures** - they're defined here
-4. **Always deploy immediately after changes** so user can test
+4. **Always push to GitHub after changes** - Vercel will auto-deploy
 5. **Maintain documentation consistency** - see Documentation Maintenance section below
 6. **Load smart context** - see Intelligent Context Rules section below
 
@@ -42,18 +42,19 @@ Before modifying imports: verify the actual path exists
 
 ## Documentation Version Control
 
-**Current Version**: v1.2 (2025-08-02)  
-**Last Updated**: Added navigation guidelines and consistent header pattern
+**Current Version**: v1.3 (2025-08-02)  
+**Last Updated**: Updated deployment rules to follow Git-based CI/CD workflow
 **Next Review**: When backend processing is implemented
 
 ### Recent Documentation Changes
+- **v1.3**: Updated Deployment Rules to use proper Git-based workflow instead of direct Vercel deployment
 - **v1.2**: Added Navigation Guidelines section with Header component usage and navigation rules
 - **v1.1**: Added CRITICAL BEHAVIOR RULES section to ensure proper checking before creating/modifying
 - **v1.0**: Initial documentation 
 
 ## Deployment Rules
 
-**DEPLOYMENT STRATEGY - LIVE IN PRODUCTION:**
+**DEPLOYMENT STRATEGY - GIT-BASED CI/CD:**
 
 ### Supabase Setup (Required First)
 1. Create Supabase project at supabase.com
@@ -68,10 +69,29 @@ npm install
 npm run dev
 ```
 
-### Deployment to Vercel
+### Deployment Workflow
+**IMPORTANT: Follow proper Git-based deployment practices:**
+
+1. **Commit changes locally:**
+   ```bash
+   git add -A
+   git commit -m "Descriptive commit message"
+   ```
+
+2. **Push to GitHub:**
+   ```bash
+   git push origin main
+   ```
+
+3. **Vercel Auto-Deploy:**
+   - Vercel is connected to the GitHub repository
+   - Pushing to `main` branch triggers automatic deployment
+   - Monitor deployment at: https://vercel.com/tyler-nelsons-projects/quickwin
+
+**Manual Deployment (ONLY if explicitly requested):**
 ```bash
 npm run build
-vercel --prod
+vercel --prod --yes
 ```
 
 **Production URLs:**
@@ -80,8 +100,10 @@ vercel --prod
 - GitHub: https://github.com/nailschristo/quickwin
 
 **Important Notes:**
-- Always deploy immediately after making changes so user can test
-- Deploy backend first if both frontend and backend changes are made
+- ALWAYS push to GitHub first - let Vercel auto-deploy from there
+- Only use direct Vercel deployment for testing or when explicitly requested
+- Check GitHub Actions or Vercel dashboard for deployment status
+- Deploy database migrations to Supabase before pushing frontend changes
 
 ## Project Context
 
