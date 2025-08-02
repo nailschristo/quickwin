@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { Header } from '@/components/layout/Header'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -25,22 +26,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold text-gray-900">QuickWin</h1>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">{user.email}</span>
-              <form action="/auth/signout" method="post">
-                <button className="text-sm text-gray-600 hover:text-gray-900">
-                  Sign out
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header title="QuickWin" user={user} />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

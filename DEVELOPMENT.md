@@ -84,6 +84,14 @@ QuickWin is a web application that helps users standardize and merge data from m
 - Rate limiting on processing endpoints
 
 ## UI/UX Patterns
+
+### Navigation
+- Use the Header component (`@/components/layout/Header`) on all pages
+- Dashboard shows "QuickWin" as clickable home link
+- Sub-pages show back arrow and page title
+- User email and sign out visible on all authenticated pages
+- Primary action buttons placed in header
+
 ### Forms
 - Clear validation messages
 - Loading states for all actions

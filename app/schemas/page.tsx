@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { SchemaCard } from '@/components/schemas/SchemaCard'
+import { Header } from '@/components/layout/Header'
 
 export default async function SchemasPage() {
   const supabase = await createClient()
@@ -18,17 +19,22 @@ export default async function SchemasPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Schemas</h1>
+    <div className="min-h-screen bg-gray-50">
+      <Header 
+        backUrl="/dashboard" 
+        title="My Schemas" 
+        user={user}
+        actions={
           <Link
             href="/schemas/new"
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             Create New Schema
           </Link>
-        </div>
+        }
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">

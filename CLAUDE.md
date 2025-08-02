@@ -42,11 +42,12 @@ Before modifying imports: verify the actual path exists
 
 ## Documentation Version Control
 
-**Current Version**: v1.1 (2025-08-02)  
-**Last Updated**: Added critical behavior rules for checking before acting
+**Current Version**: v1.2 (2025-08-02)  
+**Last Updated**: Added navigation guidelines and consistent header pattern
 **Next Review**: When backend processing is implemented
 
 ### Recent Documentation Changes
+- **v1.2**: Added Navigation Guidelines section with Header component usage and navigation rules
 - **v1.1**: Added CRITICAL BEHAVIOR RULES section to ensure proper checking before creating/modifying
 - **v1.0**: Initial documentation 
 
@@ -208,6 +209,39 @@ When triggered, **completely replace** the contents of `SESSION_HANDOFF.md` with
 - Provide preview of mapped data before final merge
 - Allow undo/redo for mapping decisions
 - Save mapping history for similar files
+
+## Navigation Guidelines
+
+### Consistent Header Pattern
+All pages MUST include the Header component with appropriate navigation:
+
+```tsx
+import { Header } from '@/components/layout/Header'
+
+// For main pages (Dashboard)
+<Header title="QuickWin" user={user} />
+
+// For sub-pages with back navigation
+<Header 
+  backUrl="/previous-page" 
+  title="Page Title" 
+  user={user}
+  actions={<optional action buttons>}
+/>
+```
+
+### Navigation Rules:
+1. **Dashboard** - Shows "QuickWin" as clickable logo, includes user info and sign out
+2. **List Pages** (e.g., /schemas) - Back arrow to dashboard, page title, action button
+3. **Detail Pages** (e.g., /schemas/[id]) - Back arrow to list page, item name as title
+4. **Create/Edit Pages** - Back arrow to previous page, descriptive title
+5. **Multi-step Pages** (e.g., /jobs/new) - Back arrow, step indicator, cancel option
+
+### Required Navigation Elements:
+- Every page must have a way to navigate back or to dashboard
+- User email and sign out should be visible on authenticated pages
+- Action buttons (create, edit, etc.) should be in the header when appropriate
+- Mobile-responsive navigation
 
 ## Infrastructure Notes
 Example of infrastructure notes
