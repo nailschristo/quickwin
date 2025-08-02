@@ -278,10 +278,7 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
 
       {/* Mapping Tables */}
       <div className="space-y-6">
-        {detectedColumns.map((file, fileIndex) => {
-          console.log('Rendering detectedColumns:', detectedColumns)
-          console.log(`Rendering file ${fileIndex}:`, file.file, 'with columns:', file.columns)
-          return (
+        {detectedColumns.map((file, fileIndex) => (
           <div key={`${file.fileId}-${fileIndex}`} className="border rounded-lg p-4">
             <h3 className="font-medium text-gray-900 mb-3 flex items-center">
               <svg className="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -307,13 +304,14 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
                   </div>
                   <div className="flex items-center space-x-2">
                     <select
+                      key={`select-${file.fileId}-${schemaCol.name}`}
                       value={mappings[file.fileId]?.[schemaCol.name]?.source || ''}
                       onChange={(e) => handleMappingChange(file.fileId, schemaCol.name, e.target.value)}
                       className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                     >
                       <option value="">-- Not mapped --</option>
-                      {file.columns.map((col: string) => (
-                        <option key={col} value={col}>{col}</option>
+                      {file.columns.map((col: string, colIndex: number) => (
+                        <option key={`${file.fileId}-${col}-${colIndex}`} value={col}>{col}</option>
                       ))}
                     </select>
                     {mappings[file.fileId]?.[schemaCol.name] && (
@@ -326,8 +324,7 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
               ))}
             </div>
           </div>
-          )
-        })}
+        ))}
       </div>
 
       {/* AI Assistance Note */}
