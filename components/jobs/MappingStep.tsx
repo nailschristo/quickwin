@@ -278,8 +278,8 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
 
       {/* Mapping Tables */}
       <div className="space-y-6">
-        {console.log('Rendering detectedColumns:', detectedColumns)}
         {detectedColumns.map((file, fileIndex) => {
+          console.log('Rendering detectedColumns:', detectedColumns)
           console.log(`Rendering file ${fileIndex}:`, file.file, 'with columns:', file.columns)
           return (
           <div key={`${file.fileId}-${fileIndex}`} className="border rounded-lg p-4">
