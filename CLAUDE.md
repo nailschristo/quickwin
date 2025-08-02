@@ -10,14 +10,45 @@
 5. **Maintain documentation consistency** - see Documentation Maintenance section below
 6. **Load smart context** - see Intelligent Context Rules section below
 
+## CRITICAL BEHAVIOR RULES - CHECK BEFORE YOU ACT
+
+**Before making ANY changes or creating ANY new files:**
+
+1. **CHECK FIRST**: Always use Read, Grep, or Glob tools to check if the component/file/feature already exists
+2. **UNDERSTAND CONTEXT**: Read related files to understand existing patterns and configurations
+3. **VERIFY IMPORTS**: Check import paths and ensure they match existing project structure
+4. **FOLLOW PATTERNS**: Match the existing code style and patterns in the codebase
+5. **ASK IF UNSURE**: If user mentions a component/feature, check if it exists before creating new ones
+
+**Example workflow:**
+- User: "Add a delete button to SchemaCard"
+- WRONG: Create new SchemaCard component
+- RIGHT: First grep for "SchemaCard" to see if it exists, then read the file to understand its structure
+
+**Common mistakes to avoid:**
+- Creating duplicate components
+- Using wrong import paths (e.g., @/utils vs @/lib)
+- Not checking existing database schema before adding columns
+- Creating new patterns when established patterns exist
+- Not verifying if a feature already exists before implementing
+
+**Required checks before action:**
+```
+Before creating a component: grep -r "ComponentName" .
+Before adding a column: read the migration files
+Before creating an API route: check existing API structure
+Before modifying imports: verify the actual path exists
+```
+
 ## Documentation Version Control
 
-**Current Version**: v1.0 (2025-08-01)  
-**Last Updated**: 
-**Next Review**: When core event management features are implemented  
+**Current Version**: v1.1 (2025-08-02)  
+**Last Updated**: Added critical behavior rules for checking before acting
+**Next Review**: When backend processing is implemented
 
 ### Recent Documentation Changes
-- **v1.0**: 
+- **v1.1**: Added CRITICAL BEHAVIOR RULES section to ensure proper checking before creating/modifying
+- **v1.0**: Initial documentation 
 
 ## Deployment Rules
 
