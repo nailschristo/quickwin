@@ -145,12 +145,14 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
                 const lines = text.split('\n').filter(line => line.trim())
                 if (lines.length > 0) {
                   const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
-                  console.log('Detected headers:', headers)
-                  detectedCols.push({
+                  console.log('Detected headers for', jobFile.file_name, ':', headers)
+                  const fileEntry = {
                     file: jobFile.file_name,
                     fileId: jobFile.id,
                     columns: headers
-                  })
+                  }
+                  console.log('Adding file entry:', fileEntry)
+                  detectedCols.push(fileEntry)
                 }
               }
             } catch (error) {
@@ -159,6 +161,7 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
           }
         }
         
+        console.log('Final detectedCols array:', detectedCols)
         setDetectedColumns(detectedCols)
         
         // Generate AI-suggested mappings

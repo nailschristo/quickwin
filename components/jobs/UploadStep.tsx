@@ -50,6 +50,14 @@ export default function UploadStep({ jobData, updateJobData, onNext, onBack }: U
     setUploading(true)
     
     try {
+      // Check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('You must be logged in to upload files')
+        setUploading(false)
+        return
+      }
+      
       // Generate a temporary job ID for file organization
       const tempJobId = `temp_${Date.now()}`
       const uploadedFilesData: any[] = []

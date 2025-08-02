@@ -38,11 +38,24 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
         })
 
         if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || 'Processing failed')
+          let errorMessage = 'Processing failed'
+          try {
+            const error = await response.json()
+            errorMessage = error.error || errorMessage
+          } catch (e) {
+            // If JSON parsing fails, try to get text
+            errorMessage = await response.text() || errorMessage
+          }
+          throw new Error(errorMessage)
         }
 
-        const result = await response.json()
+        let result
+        try {
+          result = await response.json()
+        } catch (e) {
+          console.error('Failed to parse response as JSON')
+          throw new Error('Invalid response from server')
+        }
         
         clearInterval(progressInterval)
         setProgress(100)
