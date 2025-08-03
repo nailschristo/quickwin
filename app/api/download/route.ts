@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (error || !job) {
-      console.error('Job not found:', error)
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 })
+      console.error('Job not found:', { error, jobId })
+      return NextResponse.json({ error: 'Job not found', jobId }, { status: 404 })
     }
 
     // Verify user owns this job
@@ -55,8 +55,16 @@ export async function GET(request: NextRequest) {
       .download(job.output_file_path)
 
     if (downloadError || !fileData) {
-      console.error('Failed to download file from storage:', downloadError)
-      return NextResponse.json({ error: 'Failed to download file' }, { status: 500 })
+      console.error('Failed to download file from storage:', {
+        error: downloadError,
+        path: job.output_file_path,
+        bucket: 'job-files'
+      })
+      return NextResponse.json({ 
+        error: 'Failed to download file from storage', 
+        details: downloadError?.message || 'Unknown error',
+        path: job.output_file_path 
+      }, { status: 500 })
     }
 
     // Get the filename from the path or output_data
