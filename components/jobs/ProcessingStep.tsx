@@ -30,12 +30,12 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
         }, 500)
 
         // Call the processing API
-        const response = await fetch(`/api/jobs/${jobData.jobId}/process`, {
+        const response = await fetch('/api/process-job', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({})
+          body: JSON.stringify({ jobId: jobData.jobId })
         })
 
         const responseText = await response.text()
