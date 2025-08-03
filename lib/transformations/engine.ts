@@ -31,7 +31,8 @@ export class TransformationEngine {
       case 'custom':
         return this.customTransform(sourceData, sourceColumns, config.config)
       default:
-        throw new Error(`Unknown transformation type: ${config.type}`)
+        const exhaustiveCheck: never = config
+        throw new Error(`Unknown transformation type: ${(exhaustiveCheck as any).type}`)
     }
   }
 
