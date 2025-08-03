@@ -217,8 +217,35 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
           )
           const transformations = detector.detectTransformations()
           allTransformations.push(...transformations)
+          
+          // For split transformations, ensure all target columns are mapped
+          transformations.forEach((t) => {
+            if (t.type === 'split' && t.sourceColumns.length === 1) {
+              const sourceCol = t.sourceColumns[0]
+              
+              // Check if this source column is already mapped to any target
+              const isMapped = Object.values(suggestedMappings[file.fileId] || {}).some(
+                (mapping: any) => mapping.source === sourceCol
+              )
+              
+              if (isMapped) {
+                // Add mappings for all target columns in the split
+                t.targetColumns.forEach((targetCol) => {
+                  if (!suggestedMappings[file.fileId][targetCol]) {
+                    suggestedMappings[file.fileId][targetCol] = {
+                      source: sourceCol,
+                      confidence: t.confidence
+                    }
+                  }
+                })
+              }
+            }
+          })
         })
         setDetectedTransformations(allTransformations)
+        
+        // Update mappings with split transformations
+        setMappings({...suggestedMappings})
         
       } catch (error) {
         console.error('Error loading data:', error)
