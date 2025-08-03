@@ -15,6 +15,7 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [rowsProcessed, setRowsProcessed] = useState(0)
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     const processFiles = async () => {
@@ -119,6 +120,36 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
     window.location.href = '/jobs/new'
   }
 
+  const handleDownload = async () => {
+    if (!downloadUrl) return
+    
+    setDownloading(true)
+    try {
+      const response = await fetch(downloadUrl)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Download failed:', response.status, errorText)
+        throw new Error(`Download failed: ${response.status}`)
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${jobData.schemaName || 'QuickWin'}_merged_${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error: any) {
+      console.error('Download error:', error)
+      alert('Failed to download file. Please try again.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
       <div className="text-center">
@@ -187,16 +218,28 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
             </div>
 
             {/* Download Button */}
-            <a 
-              href={downloadUrl || '#'}
-              download={`${jobData.schemaName || 'QuickWin'}_merged_${new Date().toISOString().split('T')[0]}.xlsx`}
-              className="inline-flex items-center px-6 py-3 text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
+            <button
+              onClick={handleDownload}
+              disabled={downloading || !downloadUrl}
+              className="inline-flex items-center px-6 py-3 text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Download CSV File
-            </a>
+              {downloading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Downloading...
+                </>
+              ) : (
+                <>
+                  <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download CSV File
+                </>
+              )}
+            </button>
           </>
         )}
 
