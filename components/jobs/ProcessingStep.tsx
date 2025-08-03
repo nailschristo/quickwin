@@ -31,7 +31,7 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
         }, 500)
 
         // Call the processing API
-        const response = await fetch('/api/process-job', {
+        const response = await fetch('/api/process-simple', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
