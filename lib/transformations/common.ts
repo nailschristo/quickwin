@@ -1,4 +1,5 @@
 import { TransformationConfig, SplitConfig } from '@/types/transformations'
+const human = require('humanparser')
 
 /**
  * Common transformation configurations that can be reused
@@ -192,41 +193,68 @@ export function suggestTransformation(
 }
 
 /**
- * Apply smart name splitting with multiple strategies
+ * Apply smart name splitting using humanparser library
  */
 export function smartNameSplit(fullName: string): { firstName: string; lastName: string } {
   if (!fullName || typeof fullName !== 'string') {
     return { firstName: '', lastName: '' }
   }
 
-  const trimmed = fullName.trim()
+  // Use humanparser for more intelligent parsing
+  const parsed = human.parseName(fullName.trim())
   
-  // Check for comma-separated format (Last, First)
-  if (trimmed.includes(',')) {
-    const parts = trimmed.split(',').map(p => p.trim())
+  return {
+    firstName: [parsed.salutation, parsed.firstName, parsed.middleName]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || parsed.firstName || '',
+    lastName: [parsed.lastName, parsed.suffix]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || parsed.lastName || ''
+  }
+}
+
+/**
+ * Parse a full name into all its components
+ */
+export function parseFullName(fullName: string) {
+  if (!fullName || typeof fullName !== 'string') {
     return {
-      firstName: parts[1] || '',
-      lastName: parts[0] || ''
+      salutation: '',
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      suffix: '',
+      fullName: ''
     }
   }
   
-  // Split by space
-  const parts = trimmed.split(/\s+/)
-  
-  if (parts.length === 1) {
-    // Only one name part - put it as first name
-    return { firstName: parts[0], lastName: '' }
-  }
-  
-  if (parts.length === 2) {
-    // Simple first last
-    return { firstName: parts[0], lastName: parts[1] }
-  }
-  
-  // Multiple parts - assume first part is first name, rest is last name
-  // This handles "John Michael Doe" -> "John" "Michael Doe"
+  const parsed = human.parseName(fullName.trim())
   return {
-    firstName: parts[0],
-    lastName: parts.slice(1).join(' ')
+    ...parsed,
+    fullName: fullName.trim()
   }
+}
+
+/**
+ * Combine name parts into a full name
+ */
+export function combineNameParts(parts: {
+  salutation?: string
+  firstName?: string
+  middleName?: string
+  lastName?: string
+  suffix?: string
+}): string {
+  return [
+    parts.salutation,
+    parts.firstName,
+    parts.middleName,
+    parts.lastName,
+    parts.suffix
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
 }

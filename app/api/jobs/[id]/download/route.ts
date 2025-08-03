@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import * as XLSX from 'xlsx'
-import { smartNameSplit } from '@/lib/transformations/common'
+import { smartNameSplit, combineNameParts } from '@/lib/transformations/common'
+import { TransformationDetector } from '@/lib/transformations/detector'
+import { TransformationEngine } from '@/lib/transformations/engine'
 
 export async function GET(
   request: NextRequest,
@@ -73,6 +75,14 @@ export async function GET(
       // Get mappings for this file
       const fileMappings = mappings?.filter(m => m.file_id === file.id) || []
       
+      // Get source columns from file
+      const sourceColumns = file.processed_data.columns?.map((c: any) => c.name) || 
+        Object.keys(file.processed_data.preview_data[0] || {})
+      
+      // Detect transformations for this file
+      const detector = new TransformationDetector(sourceColumns, schemaColumns)
+      const transformations = detector.detectTransformations()
+      
       // Transform each row according to mappings
       for (const sourceRow of file.processed_data.preview_data) {
         const targetRow: any = {}
@@ -82,29 +92,48 @@ export async function GET(
           targetRow[col] = ''
         })
         
-        // Apply mappings with transformation support
-        fileMappings.forEach(mapping => {
-          if (sourceRow[mapping.source_column] !== undefined) {
-            const sourceValue = sourceRow[mapping.source_column]
-            
-            // Check for special transformation cases
-            if (mapping.source_column.toLowerCase() === 'name' && 
-                mapping.target_column.toLowerCase().includes('first')) {
-              // This is a name field mapped to first name - apply splitting
-              const { firstName, lastName } = smartNameSplit(sourceValue)
-              targetRow[mapping.target_column] = firstName
-              
-              // Also set last name if there's a last name column
-              const lastNameCol = schemaColumns.find((col: string) => 
-                col.toLowerCase().includes('last') && col.toLowerCase().includes('name')
+        // Check for transformations first
+        const appliedTransformations = new Set<string>()
+        
+        for (const transformation of transformations) {
+          // Check if this transformation's source columns are mapped
+          const sourceMapped = transformation.sourceColumns.every(srcCol => 
+            sourceRow[srcCol] !== undefined && sourceRow[srcCol] !== ''
+          )
+          
+          if (sourceMapped && transformation.config) {
+            try {
+              // Apply transformation
+              const result = await TransformationEngine.transform(
+                sourceRow,
+                transformation.sourceColumns,
+                transformation.config
               )
-              if (lastNameCol) {
-                targetRow[lastNameCol] = lastName
+              
+              // Map results to target columns
+              if (transformation.type === 'split') {
+                Object.entries(result).forEach(([key, value]) => {
+                  targetRow[key] = value
+                })
+                transformation.sourceColumns.forEach(col => appliedTransformations.add(col))
+              } else if (transformation.type === 'combine') {
+                targetRow[transformation.targetColumns[0]] = result.combined
+                transformation.sourceColumns.forEach(col => appliedTransformations.add(col))
+              } else if (transformation.type === 'format') {
+                targetRow[transformation.targetColumns[0]] = result.formatted
+                transformation.sourceColumns.forEach(col => appliedTransformations.add(col))
               }
-            } else {
-              // Regular mapping
-              targetRow[mapping.target_column] = sourceValue
+            } catch (error) {
+              console.error('Transformation error:', error)
             }
+          }
+        }
+        
+        // Apply regular mappings for non-transformed columns
+        fileMappings.forEach(mapping => {
+          if (!appliedTransformations.has(mapping.source_column) && 
+              sourceRow[mapping.source_column] !== undefined) {
+            targetRow[mapping.target_column] = sourceRow[mapping.source_column]
           }
         })
         

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { TransformationDetector, DetectedTransformation } from '@/lib/transformations/detector'
 
 interface MappingStepProps {
   jobData: any
@@ -17,6 +18,7 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
   const [detectedColumns, setDetectedColumns] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [jobId, setJobId] = useState<string | null>(null)
+  const [detectedTransformations, setDetectedTransformations] = useState<DetectedTransformation[]>([])
   const supabase = createClient()
 
   // Load schema columns and process files
@@ -206,6 +208,18 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
         })
         setMappings(suggestedMappings)
         
+        // Detect transformations for each file
+        const allTransformations: DetectedTransformation[] = []
+        detectedCols.forEach((file) => {
+          const detector = new TransformationDetector(
+            file.columns,
+            schemaData?.map((col: any) => col.name) || []
+          )
+          const transformations = detector.detectTransformations()
+          allTransformations.push(...transformations)
+        })
+        setDetectedTransformations(allTransformations)
+        
       } catch (error) {
         console.error('Error loading data:', error)
       } finally {
@@ -320,28 +334,55 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
                   mappings[file.fileId]?.[schemaCol.name]?.source === sourceColumn
                 )
                 
-                // Check if this is a name field that will be split
-                const isNameSplitting = sourceColumn.toLowerCase() === 'name' && 
-                  mappedSchemaColumn?.name.toLowerCase().includes('first')
+                // Find any transformations involving this source column
+                const relevantTransformations = detectedTransformations.filter(t =>
+                  t.sourceColumns.includes(sourceColumn)
+                )
                 
-                // Find last name column if name is being split
-                const lastNameColumn = isNameSplitting ? 
-                  schemaColumns.find(col => col.name.toLowerCase().includes('last') && col.name.toLowerCase().includes('name')) : 
-                  null
+                // Get the most relevant transformation (highest confidence)
+                const transformation = relevantTransformations.length > 0 ?
+                  relevantTransformations.reduce((best, current) => 
+                    current.confidence > best.confidence ? current : best
+                  ) : null
                 
                 return (
-                  <div key={sourceColumn} className={`py-3 px-3 rounded-lg ${isNameSplitting ? 'bg-blue-50 border border-blue-200' : 'border-b'} last:border-0`}>
+                  <div key={sourceColumn} className={`py-3 px-3 rounded-lg ${transformation ? 'bg-blue-50 border border-blue-200' : 'border-b'} last:border-0`}>
                     <div className="grid grid-cols-3 gap-4 items-center">
                       <div>
                         <span className="text-sm font-medium text-gray-900">{sourceColumn}</span>
+                        {transformation && (
+                          <span className="block text-xs text-blue-600 mt-0.5">
+                            {transformation.description}
+                          </span>
+                        )}
                       </div>
                       <div className="text-center">
-                        {isNameSplitting ? (
+                        {transformation ? (
                           <div className="flex flex-col items-center">
-                            <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                            </svg>
-                            <span className="text-xs text-blue-600 mt-1">splits to</span>
+                            {transformation.type === 'split' && (
+                              <>
+                                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                </svg>
+                                <span className="text-xs text-blue-600 mt-1">splits to</span>
+                              </>
+                            )}
+                            {transformation.type === 'combine' && (
+                              <>
+                                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16m-7 5h7" />
+                                </svg>
+                                <span className="text-xs text-blue-600 mt-1">combines to</span>
+                              </>
+                            )}
+                            {transformation.type === 'format' && (
+                              <>
+                                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                <span className="text-xs text-blue-600 mt-1">formats</span>
+                              </>
+                            )}
                           </div>
                         ) : (
                           <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -350,24 +391,29 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
                         )}
                       </div>
                       <div>
-                        {isNameSplitting ? (
+                        {transformation && transformation.type === 'split' ? (
                           <div className="space-y-2">
-                            <div className="flex items-center space-x-2 bg-white rounded-md px-3 py-2 border border-blue-300">
-                              <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                              </svg>
-                              <span className="text-sm font-medium text-gray-900">First Name</span>
-                              <span className="text-xs text-green-600 ml-auto">✓</span>
-                            </div>
-                            {lastNameColumn && (
-                              <div className="flex items-center space-x-2 bg-white rounded-md px-3 py-2 border border-blue-300">
+                            {transformation.targetColumns.map((targetCol) => (
+                              <div key={targetCol} className="flex items-center space-x-2 bg-white rounded-md px-3 py-2 border border-blue-300">
                                 <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                 </svg>
-                                <span className="text-sm font-medium text-gray-900">Last Name</span>
-                                <span className="text-xs text-green-600 ml-auto">✓</span>
+                                <span className="text-sm font-medium text-gray-900">{targetCol}</span>
+                                <span className="text-xs text-green-600 ml-auto">
+                                  {Math.round(transformation.confidence * 100)}%
+                                </span>
                               </div>
-                            )}
+                            ))}
+                          </div>
+                        ) : transformation && transformation.type === 'combine' ? (
+                          <div className="flex items-center space-x-2 bg-white rounded-md px-3 py-2 border border-blue-300">
+                            <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span className="text-sm font-medium text-gray-900">{transformation.targetColumns[0]}</span>
+                            <span className="text-xs text-green-600 ml-auto">
+                              {Math.round(transformation.confidence * 100)}%
+                            </span>
                           </div>
                         ) : (
                           <div className="flex items-center space-x-2">
@@ -423,7 +469,7 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
 
       {/* AI Assistance and Transformation Note */}
       <div className="mt-6 space-y-4">
-        {detectedColumns.some(file => file.columns.some((col: string) => col.toLowerCase() === 'name')) && (
+        {detectedTransformations.length > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
             <div className="flex">
               <div className="flex-shrink-0">
@@ -434,8 +480,16 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
               <div className="ml-3">
                 <h4 className="text-sm font-medium text-blue-900">Smart Transformations Detected</h4>
                 <p className="text-sm text-blue-800 mt-1">
-                  We&apos;ve detected that your &quot;Name&quot; column will be automatically split into First Name and Last Name during processing.
+                  We&apos;ve detected {detectedTransformations.length} potential transformation{detectedTransformations.length > 1 ? 's' : ''} that will be automatically applied during processing:
                 </p>
+                <ul className="mt-2 text-sm text-blue-700 list-disc list-inside">
+                  {detectedTransformations.slice(0, 3).map((t, idx) => (
+                    <li key={idx}>{t.description}</li>
+                  ))}
+                  {detectedTransformations.length > 3 && (
+                    <li>...and {detectedTransformations.length - 3} more</li>
+                  )}
+                </ul>
               </div>
             </div>
           </div>
