@@ -1,8 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
 
 // Handle OPTIONS for CORS
 export async function OPTIONS(request: NextRequest) {
@@ -18,11 +14,16 @@ export async function OPTIONS(request: NextRequest) {
 
 // Test handler to verify route is accessible
 export async function GET(request: NextRequest) {
-  return NextResponse.json({ 
-    message: 'Process job endpoint is working',
-    method: 'GET',
-    timestamp: new Date().toISOString()
-  })
+  try {
+    return NextResponse.json({ 
+      message: 'Process job endpoint is working',
+      method: 'GET',
+      timestamp: new Date().toISOString()
+    })
+  } catch (error: any) {
+    console.error('GET handler error:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -39,7 +40,8 @@ export async function POST(request: NextRequest) {
 
     console.log('Process job API called with jobId:', jobId)
 
-    // Verify user is authenticated
+    // Import createClient inside the function to avoid top-level await issues
+    const { createClient } = await import('@/lib/supabase/server')
     const supabase = await createClient()
     
     const { data: { user } } = await supabase.auth.getUser()
