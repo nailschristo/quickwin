@@ -22,55 +22,60 @@ export async function GET(request: NextRequest) {
 
     console.log('Fetching job data for download:', jobId, 'User:', user.id)
 
-    // Get the job with output data
+    // Get the job with output file path
     const { data: job, error } = await supabase
       .from('jobs')
-      .select('output_data, output_file_path')
+      .select('output_file_path, output_data, user_id')
       .eq('id', jobId)
       .single()
 
-    if (error || !job || !job.output_data) {
-      console.error('Job not found or no output data:', error)
-      return NextResponse.json({ error: 'No output data found' }, { status: 404 })
+    if (error || !job) {
+      console.error('Job not found:', error)
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 })
     }
 
-    // Validate output data structure
-    if (!job.output_data) {
-      console.error('No output_data in job:', job)
-      return NextResponse.json({ error: 'No output data in job' }, { status: 404 })
+    // Verify user owns this job
+    if (job.user_id !== user.id) {
+      console.error('User does not own job:', { jobUser: job.user_id, requestUser: user.id })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    const { headers, rows, filename } = job.output_data as any
-
-    if (!headers || !Array.isArray(headers)) {
-      console.error('Invalid headers in output_data:', job.output_data)
-      return NextResponse.json({ error: 'Invalid output data structure - missing headers' }, { status: 500 })
+    // Check if we have a file path
+    if (!job.output_file_path) {
+      console.error('No output file path in job:', job)
+      return NextResponse.json({ error: 'No output file available' }, { status: 404 })
     }
 
-    if (!rows || !Array.isArray(rows)) {
-      console.error('Invalid rows in output_data:', job.output_data)
-      return NextResponse.json({ error: 'Invalid output data structure - missing rows' }, { status: 500 })
+    console.log('Downloading file from storage:', job.output_file_path)
+
+    // Download the file from storage
+    const { data: fileData, error: downloadError } = await supabase
+      .storage
+      .from('job-files')
+      .download(job.output_file_path)
+
+    if (downloadError || !fileData) {
+      console.error('Failed to download file from storage:', downloadError)
+      return NextResponse.json({ error: 'Failed to download file' }, { status: 500 })
     }
 
-    // Generate CSV from output data
-    const csvLines = [
-      headers.join(','),
-      ...rows.map((row: any) => 
-        headers.map((header: string) => {
-          const value = row[header] || ''
-          // Escape quotes and wrap in quotes if contains comma or quotes
-          const escaped = String(value).replace(/"/g, '""')
-          return escaped.includes(',') || escaped.includes('"') || escaped.includes('\n') ? `"${escaped}"` : escaped
-        }).join(',')
-      )
-    ]
-    const csvContent = csvLines.join('\n')
+    // Get the filename from the path or output_data
+    let filename = 'download.csv'
+    if (job.output_file_path) {
+      const parts = job.output_file_path.split('/')
+      filename = parts[parts.length - 1]
+    } else if (job.output_data && job.output_data.filename) {
+      filename = job.output_data.filename
+    }
+
+    // Convert blob to text
+    const csvContent = await fileData.text()
 
     // Return the CSV file
     return new NextResponse(csvContent, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="${filename || 'download.csv'}"`,
+        'Content-Disposition': `attachment; filename="${filename}"`,
       },
     })
   } catch (error: any) {
