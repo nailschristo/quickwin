@@ -37,23 +37,25 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
           }
         })
 
+        const responseText = await response.text()
+        
         if (!response.ok) {
           let errorMessage = 'Processing failed'
           try {
-            const error = await response.json()
+            const error = JSON.parse(responseText)
             errorMessage = error.error || errorMessage
           } catch (e) {
-            // If JSON parsing fails, try to get text
-            errorMessage = await response.text() || errorMessage
+            // If JSON parsing fails, use the text
+            errorMessage = responseText || errorMessage
           }
           throw new Error(errorMessage)
         }
 
         let result
         try {
-          result = await response.json()
+          result = JSON.parse(responseText)
         } catch (e) {
-          console.error('Failed to parse response as JSON')
+          console.error('Failed to parse response as JSON:', responseText)
           throw new Error('Invalid response from server')
         }
         
@@ -148,7 +150,8 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
         {status === 'completed' && (
           <>
             <p className="text-sm text-gray-500 mb-6">
-              Your files have been successfully processed and merged into a standardized format.
+              Your files have been successfully processed and merged into a standardized Excel format.
+              All transformations have been applied according to your mappings.
             </p>
 
             {/* Success Stats */}
@@ -170,13 +173,13 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
             {/* Download Button */}
             <a 
               href={downloadUrl || '#'}
-              download
+              download={`${jobData.schemaName || 'QuickWin'}_merged_${new Date().toISOString().split('T')[0]}.xlsx`}
               className="inline-flex items-center px-6 py-3 text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
             >
               <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Download Results
+              Download Excel File
             </a>
           </>
         )}
