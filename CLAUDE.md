@@ -21,6 +21,7 @@
 3. **VERIFY IMPORTS**: Check import paths and ensure they match existing project structure
 4. **FOLLOW PATTERNS**: Match the existing code style and patterns in the codebase
 5. **ASK IF UNSURE**: If user mentions a component/feature, check if it exists before creating new ones
+6. **PRODUCTION ENVIRONMENT**: This app runs on Vercel (https://quickwin-plum.vercel.app) - NEVER use localhost for testing or debugging production issues
 
 **Example workflow:**
 - User: "Add a delete button to SchemaCard"
@@ -44,11 +45,12 @@ Before modifying imports: verify the actual path exists
 
 ## Documentation Version Control
 
-**Current Version**: v1.7 (2025-08-03)  
-**Last Updated**: Updated session startup checklist and resolved 405 error with Edge Functions
+**Current Version**: v1.8 (2025-08-03)  
+**Last Updated**: Added critical production environment clarification - no localhost testing
 **Next Review**: When Excel/PDF/Image processing is implemented
 
 ### Recent Documentation Changes
+- **v1.8**: Added critical production environment clarification - app runs on Vercel, never use localhost for testing
 - **v1.7**: Updated session startup checklist to include all context files; resolved 405 error
 - **v1.6**: Added Transformation System and 405 Error Troubleshooting sections
 - **v1.5**: Updated with comprehensive transformation system using humanparser and fuse.js
@@ -74,6 +76,12 @@ Before modifying imports: verify the actual path exists
 npm install
 npm run dev
 ```
+
+**CRITICAL: Production Environment Notice**
+- This application is HOSTED ON VERCEL, not run locally
+- NEVER test or debug using localhost:3000
+- ALL testing must be done against the production URL: https://quickwin-plum.vercel.app
+- Local development (npm run dev) is ONLY for development, not for testing production issues
 
 ### Deployment Workflow
 **IMPORTANT: Follow proper Git-based deployment practices:**
