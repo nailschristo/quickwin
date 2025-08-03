@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,10 +9,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing path parameter' }, { status: 400 })
     }
 
-    // Create Supabase client with service role key for private bucket access
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    // Import and create Supabase client
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+
+    console.log('Attempting to download file from path:', path)
 
     // Download the file
     const { data, error } = await supabase
@@ -23,7 +23,13 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Download error:', error)
-      return NextResponse.json({ error: 'File not found' }, { status: 404 })
+      console.error('Path attempted:', path)
+      return NextResponse.json({ error: error.message || 'File not found' }, { status: 404 })
+    }
+
+    if (!data) {
+      console.error('No data returned for path:', path)
+      return NextResponse.json({ error: 'No file data' }, { status: 404 })
     }
 
     // Get filename from path
