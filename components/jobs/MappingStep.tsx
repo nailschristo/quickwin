@@ -292,7 +292,10 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
               {file.file}
             </h3>
             <div className="space-y-2">
-              {schemaColumns.map((schemaCol) => (
+              {schemaColumns.map((schemaCol) => {
+                // Debug: Log what columns are available for this specific file
+                console.log(`File ${file.file} columns for ${schemaCol.name}:`, file.columns)
+                return (
                 <div key={schemaCol.name} className="grid grid-cols-3 gap-4 items-center py-2 border-b last:border-0">
                   <div>
                     <span className="text-sm font-medium text-gray-900">{schemaCol.name}</span>
@@ -304,15 +307,19 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
                   </div>
                   <div className="flex items-center space-x-2">
                     <select
-                      key={`select-${file.fileId}-${schemaCol.name}`}
+                      key={`select-${file.fileId}-${schemaCol.name}-${file.columns.join(',')}`}
                       value={mappings[file.fileId]?.[schemaCol.name]?.source || ''}
                       onChange={(e) => handleMappingChange(file.fileId, schemaCol.name, e.target.value)}
                       className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                     >
                       <option value="">-- Not mapped --</option>
-                      {file.columns.map((col: string, colIndex: number) => (
-                        <option key={`${file.fileId}-${col}-${colIndex}`} value={col}>{col}</option>
-                      ))}
+                      {file.columns && file.columns.length > 0 ? (
+                        file.columns.map((col: string, colIndex: number) => (
+                          <option key={`opt-${file.fileId}-${col}-${colIndex}`} value={col}>{col}</option>
+                        ))
+                      ) : (
+                        <option disabled>No columns detected</option>
+                      )}
                     </select>
                     {mappings[file.fileId]?.[schemaCol.name] && (
                       <span className={`text-xs ${getConfidenceColor(mappings[file.fileId][schemaCol.name].confidence)}`}>
@@ -321,7 +328,8 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
                     )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         ))}
