@@ -42,11 +42,12 @@ Before modifying imports: verify the actual path exists
 
 ## Documentation Version Control
 
-**Current Version**: v1.4 (2025-08-02)  
-**Last Updated**: Added Backend Processing section with API implementation details
-**Next Review**: When PDF/Image processing is implemented
+**Current Version**: v1.5 (2025-08-02)  
+**Last Updated**: Added Transformation System architecture and implementation details
+**Next Review**: When transformation UI is completed
 
 ### Recent Documentation Changes
+- **v1.5**: Added Transformation System section with database schema and engine details
 - **v1.4**: Added Backend Processing section with file processing flow and API details
 - **v1.3**: Updated Deployment Rules to use proper Git-based workflow instead of direct Vercel deployment
 - **v1.2**: Added Navigation Guidelines section with Header component usage and navigation rules

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { smartNameSplit } from '@/lib/transformations/common'
 
 async function processCSVFile(fileId: string, jobId: string, supabase: any) {
   // Get file record

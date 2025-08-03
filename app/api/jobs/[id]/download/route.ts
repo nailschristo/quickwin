@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import * as XLSX from 'xlsx'
+import { smartNameSplit } from '@/lib/transformations/common'
 
 export async function GET(
   request: NextRequest,
@@ -81,10 +82,29 @@ export async function GET(
           targetRow[col] = ''
         })
         
-        // Apply mappings
+        // Apply mappings with transformation support
         fileMappings.forEach(mapping => {
           if (sourceRow[mapping.source_column] !== undefined) {
-            targetRow[mapping.target_column] = sourceRow[mapping.source_column]
+            const sourceValue = sourceRow[mapping.source_column]
+            
+            // Check for special transformation cases
+            if (mapping.source_column.toLowerCase() === 'name' && 
+                mapping.target_column.toLowerCase().includes('first')) {
+              // This is a name field mapped to first name - apply splitting
+              const { firstName, lastName } = smartNameSplit(sourceValue)
+              targetRow[mapping.target_column] = firstName
+              
+              // Also set last name if there's a last name column
+              const lastNameCol = schemaColumns.find((col: string) => 
+                col.toLowerCase().includes('last') && col.toLowerCase().includes('name')
+              )
+              if (lastNameCol) {
+                targetRow[lastNameCol] = lastName
+              }
+            } else {
+              // Regular mapping
+              targetRow[mapping.target_column] = sourceValue
+            }
           }
         })
         

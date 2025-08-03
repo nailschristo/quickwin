@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import ColumnMappingSelect from './ColumnMappingSelect'
 
 interface MappingStepProps {
   jobData: any
@@ -325,8 +324,12 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
                   <div key={sourceColumn} className="grid grid-cols-3 gap-4 items-center py-2 border-b last:border-0">
                     <div>
                       <span className="text-sm font-medium text-gray-900">{sourceColumn}</span>
-                      {sourceColumn.toLowerCase() === 'name' && (
-                        <span className="block text-xs text-amber-600 mt-0.5">
+                      {sourceColumn.toLowerCase() === 'name' && 
+                       mappedSchemaColumn?.name.toLowerCase().includes('first') && (
+                        <span className="block text-xs text-amber-600 mt-0.5 flex items-center">
+                          <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                          </svg>
                           Will be split into first/last names
                         </span>
                       )}
