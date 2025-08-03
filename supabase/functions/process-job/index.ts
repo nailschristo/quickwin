@@ -55,18 +55,31 @@ serve(async (req) => {
     const processedRows: any[] = []
     const schemaColumns = job.schemas.schema_columns.sort((a: any, b: any) => a.position - b.position)
 
+    console.log('Processing job with', job.job_files.length, 'files')
+    console.log('Schema columns:', schemaColumns.map((c: any) => c.name))
+
     // Process each file
     for (const file of job.job_files) {
-      if (!file.file_name.endsWith('.csv')) continue
+      console.log('Processing file:', file.file_name, 'ID:', file.id)
+      
+      if (!file.file_name.endsWith('.csv')) {
+        console.log('Skipping non-CSV file:', file.file_name)
+        continue
+      }
 
       // Download file
       const path = `${jobId}/${file.file_name}`
+      console.log('Downloading file from path:', path)
+      
       const { data: fileData, error: downloadError } = await supabase
         .storage
         .from('job-files')
         .download(path)
 
-      if (downloadError || !fileData) continue
+      if (downloadError || !fileData) {
+        console.error('Download error for file:', path, downloadError)
+        continue
+      }
 
       // Process CSV
       const text = await fileData.text()
@@ -105,13 +118,24 @@ serve(async (req) => {
       }
 
       const headers = parseCSVLine(lines[0])
+      console.log('CSV headers:', headers)
+      console.log('CSV has', lines.length, 'total lines (including header)')
       
       // Get mappings for this file
-      const fileMappings = job.column_mappings.filter((m: any) => m.job_file_id === file.id)
+      const fileMappings = job.column_mappings.filter((m: any) => m.file_id === file.id)
+      console.log('Found', fileMappings.length, 'mappings for file:', file.id)
+      console.log('Mappings:', fileMappings.map((m: any) => {
+        const transformInfo = m.transformation_config ? ` [${m.transformation_config.type}]` : ''
+        return `${m.source_column} -> ${m.target_column}${transformInfo}`
+      }))
       
       // Process each data row
       for (let rowIdx = 1; rowIdx < lines.length; rowIdx++) {
         const values = parseCSVLine(lines[rowIdx])
+        if (rowIdx === 1) {
+          console.log('First row values:', values)
+        }
+        
         const sourceRow: Record<string, any> = {}
         headers.forEach((header: string, idx: number) => {
           sourceRow[header] = values[idx] || ''
@@ -124,38 +148,85 @@ serve(async (req) => {
           const mapping = fileMappings.find((m: any) => m.target_column === schemaCol.name)
           
           if (mapping) {
-            if (mapping.transformation_type === 'split' && mapping.source_columns[0].toLowerCase() === 'name') {
-              // Apply name splitting
-              const fullName = sourceRow[mapping.source_columns[0]] || ''
-              const names = fullName.split(' ')
-              if (schemaCol.name.toLowerCase().includes('first')) {
-                targetRow[schemaCol.name] = names[0] || ''
-              } else if (schemaCol.name.toLowerCase().includes('last')) {
-                targetRow[schemaCol.name] = names.slice(1).join(' ') || ''
+            // Check if this mapping has a transformation
+            if (mapping.transformation_config && mapping.transformation_config.type === 'split') {
+              // Apply split transformation
+              const sourceValue = sourceRow[mapping.source_column] || ''
+              
+              if (mapping.transformation_config.config && mapping.transformation_config.config.type === 'name') {
+                // Name splitting transformation
+                const names = sourceValue.trim().split(/\s+/)
+                if (schemaCol.name.toLowerCase().includes('first')) {
+                  targetRow[schemaCol.name] = names[0] || ''
+                } else if (schemaCol.name.toLowerCase().includes('last')) {
+                  targetRow[schemaCol.name] = names.slice(1).join(' ') || ''
+                }
+              } else {
+                // Generic split - just use simple space split
+                const parts = sourceValue.split(' ')
+                const targetIndex = mapping.transformation_config.config?.targetIndex || 0
+                targetRow[schemaCol.name] = parts[targetIndex] || ''
               }
             } else {
-              // Direct mapping
-              targetRow[schemaCol.name] = sourceRow[mapping.source_columns[0]] || ''
+              // Direct mapping - no transformation
+              targetRow[schemaCol.name] = sourceRow[mapping.source_column] || ''
             }
           } else {
             targetRow[schemaCol.name] = ''
           }
         }
         
+        if (rowIdx === 1) {
+          console.log('First target row:', targetRow)
+        }
+        
         processedRows.push(targetRow)
       }
+      
+      console.log('Processed', processedRows.length, 'rows from file:', file.file_name)
     }
+    
+    console.log('Total processed rows:', processedRows.length)
 
     // Create output data structure
     const outputHeaders = schemaColumns.map((col: any) => col.name)
-    const outputData = {
-      headers: outputHeaders,
-      rows: processedRows,
-      filename: `${job.schemas.name}_merged_${new Date().toISOString().split('T')[0]}.csv`
+    const outputFilename = `${job.schemas.name}_merged_${new Date().toISOString().split('T')[0]}.csv`
+    
+    // Generate CSV content
+    const csvLines = [
+      outputHeaders.join(','),
+      ...processedRows.map((row: any) => 
+        outputHeaders.map((header: string) => {
+          const value = row[header] || ''
+          const escaped = String(value).replace(/"/g, '""')
+          return escaped.includes(',') || escaped.includes('"') || escaped.includes('\n') ? `"${escaped}"` : escaped
+        }).join(',')
+      )
+    ]
+    const csvContent = csvLines.join('\n')
+    
+    console.log('Generated CSV with', processedRows.length, 'rows')
+    console.log('CSV preview (first 500 chars):', csvContent.substring(0, 500))
+    console.log('CSV line count:', csvLines.length)
+    
+    // Upload CSV to storage
+    const outputPath = `${jobId}/output/${outputFilename}`
+    console.log('Uploading output file to:', outputPath)
+    
+    const { error: uploadError } = await supabase
+      .storage
+      .from('job-files')
+      .upload(outputPath, csvContent, {
+        contentType: 'text/csv',
+        upsert: true
+      })
+    
+    if (uploadError) {
+      console.error('Failed to upload output file:', uploadError)
+      throw uploadError
     }
     
-    console.log('Processed rows count:', processedRows.length)
-    console.log('Output data prepared')
+    console.log('Output file uploaded successfully')
     
     // Update job status and store output data
     console.log('Updating job with output data')
@@ -165,8 +236,12 @@ serve(async (req) => {
       .update({
         status: 'completed',
         completed_at: new Date().toISOString(),
-        output_data: outputData,
-        output_file_path: outputData.filename,
+        output_data: {
+          headers: outputHeaders,
+          rows: processedRows,
+          filename: outputFilename
+        },
+        output_file_path: outputPath,
         metadata: {
           rows_processed: processedRows.length,
           files_processed: job.job_files.length
@@ -183,7 +258,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         rows_processed: processedRows.length,
-        output_path: outputData.filename
+        output_path: outputPath
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

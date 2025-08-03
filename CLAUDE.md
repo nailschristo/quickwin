@@ -373,6 +373,23 @@ const result = await TransformationEngine.transform(
 )
 ```
 
+## Critical Session 9 Findings
+
+### Column Mapping Field Names
+- The `column_mappings` table uses `file_id` NOT `job_file_id`
+- It uses `source_column` (singular) NOT `source_columns` (array)
+- Frontend saves with these fields, Edge Function must match
+
+### Edge Function CSV Generation
+- Successfully creates CSV files with data rows
+- Files saved to: `{jobId}/output/{filename}.csv`
+- CSV parsing handles quoted values properly
+
+### Name Transformation Issue
+- Frontend detects transformations but Edge Function has hardcoded logic
+- Need to use `transformation_type` field from column_mappings
+- Current logic only checks if source is "name" (case-sensitive)
+
 ## 405 Error Resolution (RESOLVED ✅)
 
 ### Original Problem

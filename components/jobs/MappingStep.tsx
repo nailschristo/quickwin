@@ -254,14 +254,43 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
       Object.entries(mappings).forEach(([fileId, fileMappings]: any) => {
         Object.entries(fileMappings).forEach(([targetColumn, mapping]: any) => {
           if (mapping.source) {
-            mappingRecords.push({
+            // Find if there's a transformation for this mapping
+            const relevantTransformation = detectedTransformations.find(t => {
+              // Check if this transformation involves our source column
+              if (!t.sourceColumns.includes(mapping.source)) return false
+              
+              // Check if this transformation targets our target column
+              if (!t.targetColumns.includes(targetColumn)) return false
+              
+              // For split transformations, make sure it's the right type
+              if (t.type === 'split') {
+                const sourceLower = mapping.source.toLowerCase()
+                // Only apply to generic "name" columns, not already split first/last
+                return !sourceLower.includes('first') && !sourceLower.includes('last')
+              }
+              
+              return true
+            })
+            
+            const mappingRecord: any = {
               job_id: jobId,
               file_id: fileId,
               source_column: mapping.source,
               target_column: targetColumn,
               confidence: mapping.confidence,
               mapping_type: mapping.confidence === 1.0 ? 'manual' : 'ai'
-            })
+            }
+            
+            // Add transformation config if found
+            if (relevantTransformation) {
+              mappingRecord.transformation_config = {
+                type: relevantTransformation.type,
+                config: relevantTransformation.config,
+                description: relevantTransformation.description
+              }
+            }
+            
+            mappingRecords.push(mappingRecord)
           }
         })
       })

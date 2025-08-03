@@ -1,106 +1,81 @@
 # Session Handoff - QuickWin Project
 
-## Date: 2025-08-03 (Session 8)
+## Date: 2025-08-03 (Session 9)
 
 ### Session Summary
-This session successfully resolved the 405 error by implementing Supabase Edge Functions for processing and addressed storage upload issues by storing processed data directly in the database.
+This session fixed the Edge Function to properly save merged CSV files to storage and retrieve column mappings. However, the transformation logic for name splitting needs improvement.
 
 ### Major Accomplishments
 
-1. **Resolved 405 Error with Supabase Edge Functions**
-   - Moved processing logic from Vercel API routes to Supabase Edge Functions
-   - Edge Function successfully processes CSV files and applies transformations
-   - Bypassed all Vercel API route issues completely
-   - Processing now works end-to-end in production
+1. **Fixed Column Mapping Retrieval**
+   - Identified that Edge Function was using wrong field names
+   - Changed from `job_file_id` to `file_id` (correct field)
+   - Changed from `source_columns` array to `source_column` string
+   - Mappings now properly retrieved and applied
 
-2. **Fixed Storage Upload Issues**
-   - Discovered Edge Functions were failing to upload to Supabase Storage
-   - Implemented alternative approach: store processed data in database
-   - Added `output_data` JSONB column to jobs table
-   - Generate CSV files on-demand from stored data during download
+2. **CSV Generation Working**
+   - Edge Function now creates CSV files with data rows (not just headers)
+   - Files saved to storage at `{jobId}/output/{filename}.csv`
+   - CSV properly escapes values with commas/quotes
 
-3. **Database Schema Updates**
-   - Added `output_file_path` TEXT column to jobs table
-   - Added `metadata` JSONB column to jobs table
-   - Added `output_data` JSONB column to jobs table
-   - Applied storage policies for service role access
+3. **Identified Database Schema Issue**
+   - Frontend saves mappings with `file_id`, `source_column` (singular)
+   - Edge Function was looking for `job_file_id`, `source_columns` (array)
+   - No migration needed - just fixed the Edge Function code
 
-4. **Updated Download Flow**
-   - Download API now generates CSV from database-stored data
-   - No dependency on file storage for output files
-   - More reliable and faster than storage-based approach
+### Current Issues
 
-### Current Status
+1. **Name Transformation Not Working**
+   - The transformation detection happens in frontend
+   - But Edge Function has hardcoded simple split logic
+   - Need to pass transformation_type and config from frontend to backend
+   - Current code only checks if source column is "name" (case-sensitive)
 
-#### Working Features:
-- ✅ File upload to Supabase Storage
-- ✅ Column detection with transformation detection
-- ✅ Smart name splitting with humanparser
-- ✅ Fuzzy column matching with Fuse.js
-- ✅ Job processing via Supabase Edge Function
-- ✅ CSV generation and download from database
-- ✅ End-to-end processing flow in production
+### Critical Code Locations
 
-#### Pending Tasks:
-- Excel/XLSX export format (currently CSV only)
-- PDF parsing backend
-- Image OCR backend
-- Real AI column mapping with OpenAI
-
-### Critical Implementation Details
-
-#### Supabase Edge Function
-- Function name: `process-job`
-- Endpoint: `https://zkcvhunldlpziwjhcjqt.supabase.co/functions/v1/process-job`
-- Deployment: `supabase functions deploy process-job`
-- Uses service role for database operations
-
-#### Database Storage Approach
+#### Edge Function (Fixed)
 ```typescript
-// Store processed data in jobs table
-output_data: {
-  headers: string[],
-  rows: Record<string, any>[],
-  filename: string
-}
+// /supabase/functions/process-job/index.ts
+// Now correctly uses:
+const fileMappings = job.column_mappings.filter((m: any) => m.file_id === file.id)
+// And: mapping.source_column (not source_columns[0])
 ```
 
-#### Download Implementation
+#### Frontend Mapping Save
 ```typescript
-// Generate CSV on-demand from database
-const { headers, rows, filename } = job.output_data
-const csvContent = generateCSV(headers, rows)
-return new NextResponse(csvContent, { 
-  headers: { 'Content-Type': 'text/csv' }
+// /components/jobs/MappingStep.tsx
+mappingRecords.push({
+  job_id: jobId,
+  file_id: fileId,
+  source_column: mapping.source,
+  target_column: targetColumn,
+  confidence: mapping.confidence,
+  mapping_type: 'manual',
+  transformation_type: mapping.transformationType,
+  transformation_config: mapping.transformationConfig
 })
 ```
 
-### Files Modified This Session
-1. `/supabase/functions/process-job/index.ts` - Complete Edge Function implementation
-2. `/app/api/download/route.ts` - Database-based CSV generation
-3. `/components/jobs/ProcessingStep.tsx` - Updated to use Edge Function
-4. `/tsconfig.json` - Excluded Supabase functions from build
-5. `/middleware.ts` - Fixed to exclude API routes
-6. Multiple migration files for database schema updates
-
-### Environment Configuration
-- Supabase CLI required for Edge Function deployment
-- Environment variables properly set in Vercel:
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - `SUPABASE_JWT_SECRET`
-
-### Known Issues Resolved
-1. **405 Error**: Solved by using Supabase Edge Functions
-2. **Storage Uploads**: Solved by storing data in database
-3. **Middleware Interference**: Fixed by excluding API routes
-4. **TypeScript Build Errors**: Fixed by excluding Deno imports
-
 ### Next Steps
-1. Consider adding Excel export format using xlsx library
-2. Implement remaining file type parsers (PDF, images)
-3. Add OpenAI integration for intelligent column mapping
-4. Expand schema templates library
 
-### IMPORTANT: System is now fully functional for CSV processing!
+1. **Fix Transformation Logic**
+   - Check if frontend is saving transformation_type correctly
+   - Update Edge Function to use transformation_type from mapping
+   - Implement proper name parsing using the saved config
+
+2. **Update Download Route**
+   - Currently still tries to fetch from storage
+   - Should use the stored file path from `output_file_path`
+
+### Environment Details
+- Edge Function logs show "Listening on localhost:9999" - this is INTERNAL to Supabase, not our code
+- Production app runs on Vercel: https://quickwin-plum.vercel.app
+- Supabase Edge Functions use Deno runtime
+
+### Working Features
+- ✅ File upload and storage
+- ✅ Column detection
+- ✅ Mapping UI with transformation detection
+- ✅ Edge Function processing with CSV generation
+- ✅ Files saved to storage with proper structure
+- ⚠️ Name transformation logic needs fixing
