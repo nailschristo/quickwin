@@ -101,8 +101,9 @@ async function processCSVFile(fileId: string, jobId: string, supabase: any) {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params
   console.log('Process API called with jobId:', params.id)
   
   try {
