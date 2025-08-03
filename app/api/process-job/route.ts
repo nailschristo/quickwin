@@ -1,6 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+// Handle OPTIONS for CORS
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
+}
+
+// Test handler to verify route is accessible
+export async function GET(request: NextRequest) {
+  return NextResponse.json({ 
+    message: 'Process job endpoint is working',
+    method: 'GET',
+    timestamp: new Date().toISOString()
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()

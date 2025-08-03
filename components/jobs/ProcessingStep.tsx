@@ -14,6 +14,7 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
   const [progress, setProgress] = useState(0)
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [rowsProcessed, setRowsProcessed] = useState(0)
 
   useEffect(() => {
     const processFiles = async () => {
@@ -69,12 +70,14 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
         clearInterval(progressInterval)
         setProgress(100)
         setStatus('completed')
+        setRowsProcessed(12) // TODO: Get actual count from API
         
         // Set download URL for the processed job
         setDownloadUrl(`/api/jobs/${jobData.jobId}/download`)
       } catch (error: any) {
         setStatus('failed')
         setError(error.message || 'An error occurred while processing your files.')
+        console.error('Processing error:', error)
       }
     }
 
@@ -168,7 +171,7 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
                 <p className="text-xs text-gray-600">Files Processed</p>
               </div>
               <div className="bg-blue-50 rounded-md p-3">
-                <p className="text-2xl font-bold text-blue-600">1,234</p>
+                <p className="text-2xl font-bold text-blue-600">{rowsProcessed}</p>
                 <p className="text-xs text-gray-600">Rows Merged</p>
               </div>
               <div className="bg-purple-50 rounded-md p-3">
