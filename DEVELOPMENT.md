@@ -4,17 +4,19 @@
 QuickWin is a web application that helps users standardize and merge data from multiple file formats (CSV, PDF, images) into a unified schema. Users can define custom schemas and the system will intelligently map and merge data from various sources.
 
 ## Current Development Status
-- **Phase**: Backend Processing Implemented (CSV Support)
-- **Last Updated**: 2025-08-02
+- **Phase**: Backend Processing Complete with Edge Functions (CSV Support)
+- **Last Updated**: 2025-08-03
 - **Active Branch**: main
 - **Deployment**: Live on Vercel at https://quickwin-plum.vercel.app
+- **Processing**: Supabase Edge Functions (process-job)
 
 ## Technology Stack
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS
-- **Backend**: Supabase (Auth, Database, Storage)
-- **Processing**: Python serverless functions
-- **Deployment**: Vercel
-- **OCR/Parsing**: pdfplumber, pytesseract, pandas
+- **Backend**: Supabase (Auth, Database, Storage, Edge Functions)
+- **Processing**: Supabase Edge Functions (Deno runtime)
+- **Deployment**: Vercel (frontend), Supabase (edge functions)
+- **Libraries**: humanparser (name parsing), fuse.js (fuzzy matching)
+- **OCR/Parsing**: pdfplumber, pytesseract (planned)
 
 ## Development Priorities
 1. **Phase 1**: Authentication and project setup
@@ -52,9 +54,9 @@ QuickWin is a web application that helps users standardize and merge data from m
 - `users` - User accounts (Supabase Auth)
 - `schemas` - User-defined schemas with source tracking
 - `schema_columns` - Columns for each schema
-- `jobs` - Processing jobs with status tracking
+- `jobs` - Processing jobs with status tracking, output_data (JSONB), metadata (JSONB), output_file_path
 - `job_files` - Files uploaded for each job
-- `column_mappings` - Column mappings for jobs
+- `column_mappings` - Column mappings with transformation support
 - `schema_templates` - Pre-built schema templates
 - `schema_template_columns` - Columns for templates
 - `user_preferences` - User settings and preferences
@@ -62,9 +64,8 @@ QuickWin is a web application that helps users standardize and merge data from m
 ## API Design
 ### Endpoints (implemented)
 - `/api/auth/*` - Authentication endpoints (Supabase)
-- `/api/jobs/[id]/process` - Trigger job processing
-- `/api/jobs/[id]/download` - Download processed Excel file
-- `/api/process/csv` - Process CSV files
+- `/api/download` - Generate and download CSV from database
+- **Supabase Edge Function**: `process-job` - Process and merge files
 ### Endpoints (to be implemented)
 - `/api/process/excel` - Process Excel files
 - `/api/process/pdf` - Process PDF files

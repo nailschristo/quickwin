@@ -36,27 +36,27 @@ QuickWin is a web-based SaaS application that enables users to standardize and m
 │                     │  - Mappings │    │
 │  ┌─────────────┐    └─────────────┘    │
 │  │   Storage   │                       │
-│  │  - Files    │    ┌─────────────┐    │
-│  │  - Exports  │    │  Functions  │    │
-│  └─────────────┘    │  - Triggers │    │
+│  │  - job-files│    ┌─────────────┐    │
+│  │  - exports  │    │Edge Functions│    │
+│  └─────────────┘    │- process-job│    │
 │                     └─────────────┘    │
 └─────────────────────────────────────────┘
 ```
 
-### Processing Pipeline
+### Processing Pipeline (Current Implementation)
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   File Upload   │────▶│  File Parser    │────▶│  Data Extractor │
-│  (Multi-format) │     │  - CSV: pandas  │     │  - Normalize    │
-└─────────────────┘     │  - PDF: pdfplum │     │  - Structure    │
-                        │  - IMG: OCR     │     └─────────────────┘
-                        └─────────────────┘              │
+│   File Upload   │────▶│Column Detection │────▶│  User Mapping   │
+│  (CSV files)    │     │  - Parse CSV    │     │  - Manual map   │
+└─────────────────┘     │  - Extract cols │     │  - Transform    │
+                        └─────────────────┘     └─────────────────┘
+                                                        │
                                                         ▼
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Export File   │◀────│  Data Merger    │◀────│  Schema Mapper  │
-│  (CSV/XLSX)     │     │  - Combine      │     │  - Fuzzy Match  │
-└─────────────────┘     │  - Transform    │     │  - AI Assist    │
-                        └─────────────────┘     │  - User Confirm │
+│  Download CSV   │◀────│  Store in DB    │◀────│Edge Function    │
+│  (Generated)    │     │  - output_data  │     │  - process-job  │
+└─────────────────┘     │  - JSONB field  │     │  - Merge files  │
+                        └─────────────────┘     │  - Apply trans  │
                                                 └─────────────────┘
 ```
 
@@ -106,6 +106,9 @@ jobs {
   user_id: uuid (FK)
   schema_id: uuid (FK)
   status: enum (pending, processing, completed, failed)
+  output_file_path: text -- Path to output file (legacy)
+  output_data: jsonb -- Processed data stored in DB
+  metadata: jsonb -- Job metadata (rows processed, etc)
   created_at: timestamp
   completed_at: timestamp
 }
@@ -126,9 +129,11 @@ job_files {
 column_mappings {
   id: uuid (PK)
   job_id: uuid (FK)
-  file_id: uuid (FK)
-  source_column: string
+  job_file_id: uuid (FK) -- References job_files
+  source_columns: text[] -- Array for multi-column mappings
   target_column: string
+  transformation_type: string -- split, combine, etc
+  transformation_config: jsonb -- Transformation settings
   confidence: float
   mapping_type: enum (exact, fuzzy, ai, manual)
   created_at: timestamp
@@ -172,22 +177,23 @@ DELETE /api/files/:id
 
 ## Processing Flow
 
-### File Processing Pipeline
-1. **Upload**: User uploads files through frontend
-2. **Storage**: Files stored in Supabase Storage
-3. **Parse**: Serverless function triggered to parse file
-4. **Extract**: Data extracted based on file type
-5. **Normalize**: Data converted to standard format
-6. **Map**: Columns mapped to user schema
-7. **Review**: User reviews and adjusts mappings
-8. **Merge**: All files merged according to schema
-9. **Export**: Final file generated and downloadable
+### File Processing Pipeline (As Implemented)
+1. **Upload**: User uploads CSV files through frontend
+2. **Storage**: Files stored in Supabase Storage `job-files` bucket
+3. **Column Detection**: Client-side CSV parsing to extract headers
+4. **Mapping**: User manually maps columns with transformation detection
+5. **Edge Function**: Supabase Edge Function `process-job` handles merging
+6. **Database Storage**: Processed data stored in `jobs.output_data` JSONB field
+7. **Download**: CSV generated on-demand from database data
 
-### Column Mapping Strategy
-1. **Exact Match**: Direct string comparison
-2. **Fuzzy Match**: Using Levenshtein distance
-3. **AI-Assisted**: OpenAI API for complex matches
-4. **Manual Override**: User can correct any mapping
+### Column Mapping Strategy (As Implemented)
+1. **Fuzzy Match**: Using Fuse.js for intelligent matching
+2. **Transformation Detection**: Automatic detection of:
+   - Name splitting (Full Name → First/Last)
+   - Name combining (First/Last → Full Name)
+   - Using humanparser for intelligent name parsing
+3. **Manual Selection**: User confirms all mappings
+4. **Future**: OpenAI API for complex matches
 
 ## Security Architecture
 

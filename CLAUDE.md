@@ -4,11 +4,13 @@
 
 **At the start of every session, Claude Code should:**
 1. **Reference this file (CLAUDE.md)** for deployment rules and AI guidelines
-2. **Read DEVELOPMENT.md** for comprehensive development guidelines  
-3. **Never ask about deployment procedures** - they're defined here
-4. **Always push to GitHub after changes** - Vercel will auto-deploy
-5. **Maintain documentation consistency** - see Documentation Maintenance section below
-6. **Load smart context** - see Intelligent Context Rules section below
+2. **Read SESSION_HANDOFF.md** for current project state and recent changes
+3. **Read DEVELOPMENT.md** for comprehensive development guidelines
+4. **Read ARCHITECTURE.md** for system design and data model
+5. **Never ask about deployment procedures** - they're defined here
+6. **Always push to GitHub after changes** - Vercel will auto-deploy
+7. **Maintain documentation consistency** - see Documentation Maintenance section below
+8. **Load smart context** - see Intelligent Context Rules section below
 
 ## CRITICAL BEHAVIOR RULES - CHECK BEFORE YOU ACT
 
@@ -42,11 +44,12 @@ Before modifying imports: verify the actual path exists
 
 ## Documentation Version Control
 
-**Current Version**: v1.6 (2025-08-03)  
-**Last Updated**: Added transformation system details and 405 error troubleshooting notes
-**Next Review**: When 405 error is resolved or alternative approach implemented
+**Current Version**: v1.7 (2025-08-03)  
+**Last Updated**: Updated session startup checklist and resolved 405 error with Edge Functions
+**Next Review**: When Excel/PDF/Image processing is implemented
 
 ### Recent Documentation Changes
+- **v1.7**: Updated session startup checklist to include all context files; resolved 405 error
 - **v1.6**: Added Transformation System and 405 Error Troubleshooting sections
 - **v1.5**: Updated with comprehensive transformation system using humanparser and fuse.js
 - **v1.4**: Added Backend Processing section with file processing flow and API details
@@ -281,28 +284,30 @@ Example of infrastructure notes
 ```
 ## Backend Processing Implementation
 
-### File Processing Flow
+### File Processing Flow (Current - Using Edge Functions)
 1. **Job Creation**: Jobs are created when users reach the mapping step
 2. **File Upload**: Files are stored in Supabase Storage bucket 'job-files'
-3. **Column Detection**: CSV files are processed to extract headers and sample data
+3. **Column Detection**: CSV files are processed client-side to extract headers
 4. **Mapping Storage**: User-selected column mappings are saved to database
-5. **Processing**: Files are processed according to schema and mappings
-6. **Export**: Merged data is exported as Excel file for download
+5. **Edge Function Processing**: Supabase Edge Function processes and merges files
+6. **Database Storage**: Processed data stored in `jobs.output_data` JSONB field
+7. **Download**: CSV generated on-demand from database data
 
 ### API Endpoints
-- **POST /api/jobs/[id]/process** - Orchestrates file processing
-- **POST /api/process/csv** - Processes CSV files (implemented)
-- **GET /api/jobs/[id]/download** - Downloads merged Excel file
+- **Supabase Edge Function**: `process-job` - Handles all file processing
+- **GET /api/download** - Generates CSV from database and downloads
 - **POST /api/process/excel** - Process Excel files (TODO)
 - **POST /api/process/pdf** - Process PDF files (TODO)
 - **POST /api/process/image** - Process images with OCR (TODO)
 
 ### Important Implementation Notes
 - Server-side `createClient()` doesn't take parameters - it handles cookies internally
-- CSV processing currently happens client-side for column detection
+- CSV processing happens client-side for column detection
 - Job status tracking: 'pending' → 'processing' → 'completed' or 'failed'
-- Excel export uses xlsx package to generate files
-- Column mappings support confidence scores for AI suggestions
+- CSV export generated on-demand from database-stored data
+- Column mappings support confidence scores and transformation configs
+- Edge Functions use Deno runtime and require service role for database access
+- Processed data stored as JSONB in `jobs.output_data` field
 
 ### Schema Source Tracking
 - Schemas now track their source: 'manual', 'template', or 'import'
@@ -360,43 +365,38 @@ const result = await TransformationEngine.transform(
 )
 ```
 
-## 405 Error Troubleshooting (CRITICAL ISSUE)
+## 405 Error Resolution (RESOLVED ✅)
 
-### Problem
-- `/api/jobs/[id]/process` returns 405 Method Not Allowed on Vercel
-- Works locally with curl and dev server
-- Blocks entire processing flow
+### Original Problem
+- `/api/jobs/[id]/process` returned 405 Method Not Allowed on Vercel
+- Worked locally but failed in production
+- Blocked entire processing flow
 
-### Attempted Fixes
-1. ✅ Changed from Promise<{id}> to {id} parameter pattern
-2. ✅ Added export const runtime = 'nodejs'
-3. ✅ Added export const dynamic = 'force-dynamic'
-4. ✅ Added OPTIONS handler for CORS
-5. ✅ Added request body to POST call
-6. ✅ Enhanced error logging
+### Solution Implemented
+- **Moved processing to Supabase Edge Functions** instead of Vercel API routes
+- Created `process-job` Edge Function that handles all file processing
+- Edge Function runs in Deno runtime and has direct database access
+- ProcessingStep component now calls Edge Function endpoint directly
 
-### Current Route Configuration
+### Key Learnings
+1. Vercel has issues with dynamic API routes in Next.js 14 App Router
+2. Supabase Edge Functions provide more reliable serverless execution
+3. Edge Functions can access Supabase services directly with service role
+4. Storing processed data in database is more reliable than file storage
+
+### Current Implementation
 ```typescript
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
+// Frontend call to Edge Function
+const response = await fetch(`${supabaseUrl}/functions/v1/process-job`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${supabaseAnonKey}`,
+  },
+  body: JSON.stringify({ jobId })
+})
 
-export async function OPTIONS(request) {
-  return new NextResponse(null, { status: 200 })
-}
-
-export async function POST(request, { params }) {
-  // Processing logic
-}
+// Processed data stored in jobs.output_data JSONB field
+// CSV generated on-demand during download
 ```
-
-### Next Steps for Resolution
-1. Check Vercel function logs for specific errors
-2. Try alternative routing approach (non-dynamic route)
-3. Use query parameters instead of dynamic segments
-4. Contact Vercel support if issue persists
-
-### Workaround Options
-- Create `/api/process-job` with jobId in request body
-- Use `/api/process/job?id={id}` with query parameter
-- Move processing to client-side with direct Supabase calls
 ---

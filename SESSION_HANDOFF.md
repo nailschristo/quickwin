@@ -1,145 +1,106 @@
 # Session Handoff - QuickWin Project
 
-## Date: 2025-08-03 (Session 7)
+## Date: 2025-08-03 (Session 8)
 
 ### Session Summary
-This session focused on implementing a comprehensive transformation system using open-source libraries and troubleshooting a persistent 405 error in the job processing endpoint.
+This session successfully resolved the 405 error by implementing Supabase Edge Functions for processing and addressed storage upload issues by storing processed data directly in the database.
 
 ### Major Accomplishments
 
-1. **Implemented Comprehensive Transformation System**
-   - Integrated `humanparser` for intelligent name parsing (handles Dr., Jr., middle names, etc.)
-   - Added `fuse.js` for fuzzy column matching with confidence scores
-   - Created `TransformationDetector` class to automatically detect transformations
-   - Supports bidirectional transformations (Name ↔ First/Last Name)
-   - Built transformation engine with split, combine, format, extract, conditional types
+1. **Resolved 405 Error with Supabase Edge Functions**
+   - Moved processing logic from Vercel API routes to Supabase Edge Functions
+   - Edge Function successfully processes CSV files and applies transformations
+   - Bypassed all Vercel API route issues completely
+   - Processing now works end-to-end in production
 
-2. **Fixed UI Issues with Column Mapping**
-   - Fixed React rendering issue where dropdowns showed same columns for all files
-   - Reversed mapping direction to be more intuitive (source → target)
-   - Enhanced UI to show all detected transformations with visual indicators
-   - Prevented illogical transformations (e.g., "Last Name" → "First Name + Last Name")
+2. **Fixed Storage Upload Issues**
+   - Discovered Edge Functions were failing to upload to Supabase Storage
+   - Implemented alternative approach: store processed data in database
+   - Added `output_data` JSONB column to jobs table
+   - Generate CSV files on-demand from stored data during download
 
-3. **Improved Download Functionality**
-   - Fixed JSON parsing error in ProcessingStep
-   - Added proper Excel file naming (SchemaName_merged_YYYY-MM-DD.xlsx)
-   - Integrated transformation engine into download/export process
+3. **Database Schema Updates**
+   - Added `output_file_path` TEXT column to jobs table
+   - Added `metadata` JSONB column to jobs table
+   - Added `output_data` JSONB column to jobs table
+   - Applied storage policies for service role access
 
-4. **Ongoing 405 Error Investigation**
-   - Error persists despite multiple fixes
-   - Works locally but fails on Vercel deployment
-   - Tried multiple approaches:
-     - Fixed Next.js 14 dynamic params (Promise pattern → direct pattern)
-     - Added runtime and dynamic exports
-     - Added OPTIONS handler for CORS
-     - Enhanced error logging
+4. **Updated Download Flow**
+   - Download API now generates CSV from database-stored data
+   - No dependency on file storage for output files
+   - More reliable and faster than storage-based approach
 
 ### Current Status
 
 #### Working Features:
 - ✅ File upload to Supabase Storage
-- ✅ Column detection with correct columns per file
-- ✅ Intuitive mapping interface with transformation detection
+- ✅ Column detection with transformation detection
 - ✅ Smart name splitting with humanparser
 - ✅ Fuzzy column matching with Fuse.js
-- ✅ Job creation and column mapping storage
-- ✅ Local API endpoints work correctly
+- ✅ Job processing via Supabase Edge Function
+- ✅ CSV generation and download from database
+- ✅ End-to-end processing flow in production
 
-#### Critical Issue:
-- ❌ **405 Method Not Allowed on `/api/jobs/[id]/process`** (Vercel deployment only)
+#### Pending Tasks:
+- Excel/XLSX export format (currently CSV only)
+- PDF parsing backend
+- Image OCR backend
+- Real AI column mapping with OpenAI
+
+### Critical Implementation Details
+
+#### Supabase Edge Function
+- Function name: `process-job`
+- Endpoint: `https://zkcvhunldlpziwjhcjqt.supabase.co/functions/v1/process-job`
+- Deployment: `supabase functions deploy process-job`
+- Uses service role for database operations
+
+#### Database Storage Approach
+```typescript
+// Store processed data in jobs table
+output_data: {
+  headers: string[],
+  rows: Record<string, any>[],
+  filename: string
+}
+```
+
+#### Download Implementation
+```typescript
+// Generate CSV on-demand from database
+const { headers, rows, filename } = job.output_data
+const csvContent = generateCSV(headers, rows)
+return new NextResponse(csvContent, { 
+  headers: { 'Content-Type': 'text/csv' }
+})
+```
 
 ### Files Modified This Session
-1. `/lib/transformations/common.ts` - Enhanced with humanparser
-2. `/lib/transformations/detector.ts` - New transformation detection system
-3. `/components/jobs/MappingStep.tsx` - Fixed rendering, added transformation UI
-4. `/app/api/jobs/[id]/download/route.ts` - Integrated transformations
-5. `/components/jobs/ProcessingStep.tsx` - Fixed JSON parsing, added debugging
-6. `/app/api/jobs/[id]/process/route.ts` - Multiple attempts to fix 405 error
+1. `/supabase/functions/process-job/index.ts` - Complete Edge Function implementation
+2. `/app/api/download/route.ts` - Database-based CSV generation
+3. `/components/jobs/ProcessingStep.tsx` - Updated to use Edge Function
+4. `/tsconfig.json` - Excluded Supabase functions from build
+5. `/middleware.ts` - Fixed to exclude API routes
+6. Multiple migration files for database schema updates
 
-### Technical Details
+### Environment Configuration
+- Supabase CLI required for Edge Function deployment
+- Environment variables properly set in Vercel:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `SUPABASE_JWT_SECRET`
 
-#### Transformation System Architecture:
-```typescript
-// Detector finds transformations
-const detector = new TransformationDetector(sourceColumns, targetColumns)
-const transformations = detector.detectTransformations()
+### Known Issues Resolved
+1. **405 Error**: Solved by using Supabase Edge Functions
+2. **Storage Uploads**: Solved by storing data in database
+3. **Middleware Interference**: Fixed by excluding API routes
+4. **TypeScript Build Errors**: Fixed by excluding Deno imports
 
-// Engine applies transformations
-const result = await TransformationEngine.transform(
-  sourceRow,
-  transformation.sourceColumns,
-  transformation.config
-)
-```
+### Next Steps
+1. Consider adding Excel export format using xlsx library
+2. Implement remaining file type parsers (PDF, images)
+3. Add OpenAI integration for intelligent column mapping
+4. Expand schema templates library
 
-#### 405 Error Debugging Status:
-- Endpoint URL: `/api/jobs/[id]/process`
-- Method: POST
-- Works: `curl -X POST http://localhost:3000/api/jobs/test123/process`
-- Fails: Production Vercel deployment
-- Current exports in route:
-  ```typescript
-  export const runtime = 'nodejs'
-  export const dynamic = 'force-dynamic'
-  export async function OPTIONS(request) { ... }
-  export async function POST(request, { params }) { ... }
-  ```
-
-### Next Steps for 405 Error Resolution
-
-1. **Check Vercel Logs**
-   - Look for function execution errors
-   - Check if the route is being recognized
-   - Verify middleware isn't blocking
-
-2. **Alternative Approaches to Try**
-   - Move processing logic to non-dynamic route (e.g., `/api/process-job`)
-   - Use query parameters instead of dynamic route
-   - Check if Vercel has specific configuration requirements
-
-3. **Debugging Information Added**
-   - Enhanced console logging shows:
-     - Response status and statusText
-     - Response headers
-     - Full response body
-   - This will help identify the exact issue
-
-### Environment Details
-- Next.js: 14.2.21
-- Node.js runtime on Vercel
-- Supabase for backend services
-- Files stored in `job-files` bucket
-
-### Critical Code Patterns
-
-#### Working API Route (for comparison):
-```typescript
-// /api/process/csv/route.ts - WORKS
-export async function POST(request: NextRequest) {
-  const body = await request.json()
-  // ... processing logic
-}
-```
-
-#### Problematic API Route:
-```typescript
-// /api/jobs/[id]/process/route.ts - 405 ERROR
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  // ... processing logic
-}
-```
-
-### Session Metrics
-- Commits: 12
-- Major features: 2 (Transformation system, UI improvements)
-- Bug fixes attempted: 5+ (405 error remains)
-- Libraries added: 2 (humanparser, fuse.js)
-
-### IMPORTANT: Next Session Must Address
-1. **405 Error is blocking entire processing flow**
-2. Consider alternative routing strategy if current approach continues to fail
-3. May need to check Vercel project settings or contact support
-4. All other features are complete and working locally
+### IMPORTANT: System is now fully functional for CSV processing!

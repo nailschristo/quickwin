@@ -30,9 +30,9 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
           })
         }, 500)
 
-        // Get Supabase URL and anon key from window
-        const supabaseUrl = 'https://zkcvhunldlpziwjhcjqt.supabase.co'
-        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprY3ZodW5sZGxweml3amhjanF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMDQ2NjMsImV4cCI6MjA2OTY4MDY2M30.j1u8PB2GbeKtArEneD6GCkbsp_qtReLKH5kznIVbW9o'
+        // Get Supabase URL and anon key
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://zkcvhunldlpziwjhcjqt.supabase.co'
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprY3ZodW5sZGxweml3amhjanF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMDQ2NjMsImV4cCI6MjA2OTY4MDY2M30.j1u8PB2GbeKtArEneD6GCkbsp_qtReLKH5kznIVbW9o'
 
         // Call the Supabase Edge Function
         const response = await fetch(`${supabaseUrl}/functions/v1/process-job`, {

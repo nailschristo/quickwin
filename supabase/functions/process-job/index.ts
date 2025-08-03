@@ -53,7 +53,7 @@ serve(async (req) => {
       .eq('id', jobId)
 
     const processedRows: any[] = []
-    const schemaColumns = job.schemas.schema_columns.sort((a: any, b: any) => a.order - b.order)
+    const schemaColumns = job.schemas.schema_columns.sort((a: any, b: any) => a.position - b.position)
 
     // Process each file
     for (const file of job.job_files) {
@@ -74,14 +74,44 @@ serve(async (req) => {
       
       if (lines.length <= 1) continue
 
-      const headers = lines[0].split(',').map((h: string) => h.trim().replace(/^"|"$/g, ''))
+      // Parse CSV properly (handle quoted values)
+      const parseCSVLine = (line: string): string[] => {
+        const result: string[] = []
+        let current = ''
+        let inQuotes = false
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i]
+          const nextChar = line[i + 1]
+          
+          if (char === '"' && nextChar === '"' && inQuotes) {
+            current += '"'
+            i++ // Skip next quote
+          } else if (char === '"') {
+            inQuotes = !inQuotes
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim())
+            current = ''
+          } else {
+            current += char
+          }
+        }
+        
+        if (current) {
+          result.push(current.trim())
+        }
+        
+        return result
+      }
+
+      const headers = parseCSVLine(lines[0])
       
       // Get mappings for this file
       const fileMappings = job.column_mappings.filter((m: any) => m.job_file_id === file.id)
       
       // Process each data row
       for (let rowIdx = 1; rowIdx < lines.length; rowIdx++) {
-        const values = lines[rowIdx].split(',').map((v: string) => v.trim().replace(/^"|"$/g, ''))
+        const values = parseCSVLine(lines[rowIdx])
         const sourceRow: Record<string, any> = {}
         headers.forEach((header: string, idx: number) => {
           sourceRow[header] = values[idx] || ''
@@ -153,7 +183,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         rows_processed: processedRows.length,
-        output_path: outputPath
+        output_path: outputData.filename
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -162,18 +192,6 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('Processing error:', error)
-    
-    // Update job status to failed
-    if (jobId) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      const supabase = createClient(supabaseUrl, supabaseServiceKey)
-      
-      await supabase
-        .from('jobs')
-        .update({ status: 'failed' })
-        .eq('id', jobId)
-    }
 
     return new Response(
       JSON.stringify({ error: error.message }),
