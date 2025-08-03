@@ -314,7 +314,7 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
               {file.file}
             </h3>
             <div className="space-y-2">
-              {file.columns.map((sourceColumn) => {
+              {file.columns.map((sourceColumn: string) => {
                 // Find which schema column this source column is mapped to
                 const mappedSchemaColumn = schemaColumns.find(schemaCol => 
                   mappings[file.fileId]?.[schemaCol.name]?.source === sourceColumn
