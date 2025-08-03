@@ -106,8 +106,9 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params
   console.log('Process API called with jobId:', params.id)
   console.log('Request method:', request.method)
   console.log('Request headers:', Object.fromEntries(request.headers.entries()))
