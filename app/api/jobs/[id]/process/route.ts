@@ -101,12 +101,15 @@ async function processCSVFile(fileId: string, jobId: string, supabase: any) {
 
 export async function POST(
   request: NextRequest,
-  props: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const params = await props.params
   console.log('Process API called with jobId:', params.id)
   
   try {
+    if (!params || !params.id) {
+      throw new Error('Missing job ID parameter')
+    }
+    
     const jobId = params.id
 
     // Verify user is authenticated

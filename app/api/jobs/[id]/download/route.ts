@@ -7,10 +7,9 @@ import { TransformationEngine } from '@/lib/transformations/engine'
 
 export async function GET(
   request: NextRequest,
-  props: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const params = await props.params
     const jobId = params.id
 
     // Verify user is authenticated
