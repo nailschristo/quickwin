@@ -30,11 +30,16 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
           })
         }, 500)
 
-        // Call the processing API
-        const response = await fetch('/api/process-simple', {
+        // Get Supabase URL and anon key
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+        // Call the Supabase Edge Function
+        const response = await fetch(`${supabaseUrl}/functions/v1/process-job`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseAnonKey}`,
           },
           body: JSON.stringify({ jobId: jobData.jobId })
         })
