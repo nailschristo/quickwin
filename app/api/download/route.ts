@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,8 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing jobId parameter' }, { status: 400 })
     }
 
-    // Import and create Supabase client
-    const { createClient } = await import('@/lib/supabase/server')
+    // Create Supabase client
     const supabase = await createClient()
 
     // Check if user is authenticated
@@ -88,6 +88,10 @@ export async function GET(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('Download route error:', error)
-    return NextResponse.json({ error: 'Download failed' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Download failed', 
+      message: error.message || 'Unknown error',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 })
   }
 }
