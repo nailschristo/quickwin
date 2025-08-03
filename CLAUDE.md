@@ -42,12 +42,13 @@ Before modifying imports: verify the actual path exists
 
 ## Documentation Version Control
 
-**Current Version**: v1.5 (2025-08-02)  
-**Last Updated**: Added Transformation System architecture and implementation details
-**Next Review**: When transformation UI is completed
+**Current Version**: v1.6 (2025-08-03)  
+**Last Updated**: Added transformation system details and 405 error troubleshooting notes
+**Next Review**: When 405 error is resolved or alternative approach implemented
 
 ### Recent Documentation Changes
-- **v1.5**: Added Transformation System section with database schema and engine details
+- **v1.6**: Added Transformation System and 405 Error Troubleshooting sections
+- **v1.5**: Updated with comprehensive transformation system using humanparser and fuse.js
 - **v1.4**: Added Backend Processing section with file processing flow and API details
 - **v1.3**: Updated Deployment Rules to use proper Git-based workflow instead of direct Vercel deployment
 - **v1.2**: Added Navigation Guidelines section with Header component usage and navigation rules
@@ -322,4 +323,80 @@ SUPABASE_JWT_SECRET=[JWT secret from Supabase]
 - Project Ref: zkcvhunldlpziwjhcjqt
 - Database Password: I#9winesdaily
 - CLI Access Token: sbp_854e8fcd32a1426f7f8efc638a64c1cc560d3fba
+
+## Transformation System
+
+### Overview
+QuickWin uses an intelligent transformation system to handle data mapping between different formats:
+- **humanparser**: Intelligent name parsing (handles prefixes, suffixes, middle names)
+- **fuse.js**: Fuzzy column matching with confidence scores
+- **TransformationDetector**: Automatically detects split/combine/format transformations
+- **TransformationEngine**: Applies transformations during export
+
+### Supported Transformations
+1. **Name Transformations**
+   - Split: "John Doe" → First: "John", Last: "Doe"
+   - Combine: First + Last → "John Doe"
+   - Smart parsing: "Dr. John Smith Jr." → properly parsed components
+
+2. **Address Transformations** (defined, not yet UI-enabled)
+   - Split full address into street/city/state/zip
+   - Extract zip codes
+
+3. **Phone Transformations** (defined, not yet UI-enabled)
+   - Clean and format phone numbers
+
+### Architecture
+```typescript
+// Detection
+const detector = new TransformationDetector(sourceColumns, targetColumns)
+const transformations = detector.detectTransformations()
+
+// Application
+const result = await TransformationEngine.transform(
+  sourceRow,
+  transformation.sourceColumns,
+  transformation.config
+)
+```
+
+## 405 Error Troubleshooting (CRITICAL ISSUE)
+
+### Problem
+- `/api/jobs/[id]/process` returns 405 Method Not Allowed on Vercel
+- Works locally with curl and dev server
+- Blocks entire processing flow
+
+### Attempted Fixes
+1. ✅ Changed from Promise<{id}> to {id} parameter pattern
+2. ✅ Added export const runtime = 'nodejs'
+3. ✅ Added export const dynamic = 'force-dynamic'
+4. ✅ Added OPTIONS handler for CORS
+5. ✅ Added request body to POST call
+6. ✅ Enhanced error logging
+
+### Current Route Configuration
+```typescript
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+export async function OPTIONS(request) {
+  return new NextResponse(null, { status: 200 })
+}
+
+export async function POST(request, { params }) {
+  // Processing logic
+}
+```
+
+### Next Steps for Resolution
+1. Check Vercel function logs for specific errors
+2. Try alternative routing approach (non-dynamic route)
+3. Use query parameters instead of dynamic segments
+4. Contact Vercel support if issue persists
+
+### Workaround Options
+- Create `/api/process-job` with jobId in request body
+- Use `/api/process/job?id={id}` with query parameter
+- Move processing to client-side with direct Supabase calls
 ---

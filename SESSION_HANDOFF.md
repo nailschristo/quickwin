@@ -1,121 +1,145 @@
 # Session Handoff - QuickWin Project
 
-## Date: 2025-08-02 (Session 6)
+## Date: 2025-08-03 (Session 7)
 
 ### Session Summary
-This session focused on fixing critical UI/UX issues with column mapping and implementing a transformation system for handling complex data mappings like name splitting.
+This session focused on implementing a comprehensive transformation system using open-source libraries and troubleshooting a persistent 405 error in the job processing endpoint.
 
 ### Major Accomplishments
 
-1. **Fixed React Rendering Issue**
-   - Column dropdowns were showing incorrect options for different files
-   - Created separate component approach didn't work
-   - Final fix: Modified select key to include column content
-   - Root cause: React's reconciliation was reusing DOM elements
+1. **Implemented Comprehensive Transformation System**
+   - Integrated `humanparser` for intelligent name parsing (handles Dr., Jr., middle names, etc.)
+   - Added `fuse.js` for fuzzy column matching with confidence scores
+   - Created `TransformationDetector` class to automatically detect transformations
+   - Supports bidirectional transformations (Name ↔ First/Last Name)
+   - Built transformation engine with split, combine, format, extract, conditional types
 
-2. **Reversed Mapping UI Direction**
-   - Changed from "Schema → Source" to "Source → Schema" 
-   - More intuitive: users see their file columns and choose where to map them
-   - Updated AI suggestions to work with new direction
+2. **Fixed UI Issues with Column Mapping**
+   - Fixed React rendering issue where dropdowns showed same columns for all files
+   - Reversed mapping direction to be more intuitive (source → target)
+   - Enhanced UI to show all detected transformations with visual indicators
+   - Prevented illogical transformations (e.g., "Last Name" → "First Name + Last Name")
 
-3. **Implemented Transformation System Architecture**
-   - Created database schema for transformations
-   - Built transformation engine with support for:
-     - Split (e.g., "John Doe" → First: "John", Last: "Doe")
-     - Combine (e.g., Date + Time → DateTime)
-     - Format (e.g., phone number cleaning)
-     - Extract (e.g., email domain)
-     - Conditional logic
-   - Added smart name splitting that handles multiple formats
+3. **Improved Download Functionality**
+   - Fixed JSON parsing error in ProcessingStep
+   - Added proper Excel file naming (SchemaName_merged_YYYY-MM-DD.xlsx)
+   - Integrated transformation engine into download/export process
 
-4. **Integrated Name Splitting**
-   - Automatically detects when "Name" is mapped to "First Name"
-   - Splits and populates both First and Last Name columns
-   - Visual indicator in UI showing transformation will occur
-   - Works in download/export functionality
+4. **Ongoing 405 Error Investigation**
+   - Error persists despite multiple fixes
+   - Works locally but fails on Vercel deployment
+   - Tried multiple approaches:
+     - Fixed Next.js 14 dynamic params (Promise pattern → direct pattern)
+     - Added runtime and dynamic exports
+     - Added OPTIONS handler for CORS
+     - Enhanced error logging
 
-### Current Implementation Status
+### Current Status
 
 #### Working Features:
-- File upload to Supabase Storage (job-files bucket)
-- CSV column detection with correct columns per file
-- Intuitive source → target mapping interface
-- Basic name splitting transformation
-- AI-suggested mappings with fuzzy matching
-- Job creation and status tracking
-- Excel export with transformations applied
+- ✅ File upload to Supabase Storage
+- ✅ Column detection with correct columns per file
+- ✅ Intuitive mapping interface with transformation detection
+- ✅ Smart name splitting with humanparser
+- ✅ Fuzzy column matching with Fuse.js
+- ✅ Job creation and column mapping storage
+- ✅ Local API endpoints work correctly
 
-#### Known Issues:
-1. **JSON Parsing Error** during job processing (ProcessingStep)
-2. **Limited Transformation Support** - only name splitting implemented
-3. **No UI for Custom Transformations** - hardcoded for name fields
+#### Critical Issue:
+- ❌ **405 Method Not Allowed on `/api/jobs/[id]/process`** (Vercel deployment only)
 
-### Files Modified
-- `/components/jobs/MappingStep.tsx` - Reversed UI, fixed rendering
-- `/app/api/jobs/[id]/download/route.ts` - Added name splitting
-- `/supabase/migrations/20250802000009_add_column_transformations.sql` - New schema
-- `/types/transformations.ts` - Transformation type definitions
-- `/lib/transformations/engine.ts` - Transformation processing engine
-- `/lib/transformations/common.ts` - Common transformation patterns
+### Files Modified This Session
+1. `/lib/transformations/common.ts` - Enhanced with humanparser
+2. `/lib/transformations/detector.ts` - New transformation detection system
+3. `/components/jobs/MappingStep.tsx` - Fixed rendering, added transformation UI
+4. `/app/api/jobs/[id]/download/route.ts` - Integrated transformations
+5. `/components/jobs/ProcessingStep.tsx` - Fixed JSON parsing, added debugging
+6. `/app/api/jobs/[id]/process/route.ts` - Multiple attempts to fix 405 error
 
-### Technical Implementation Details
+### Technical Details
 
-#### Transformation Database Schema:
-```sql
-CREATE TABLE column_transformations (
-    id UUID PRIMARY KEY,
-    job_id UUID REFERENCES jobs(id),
-    transformation_type VARCHAR(50),
-    source_columns TEXT[],
-    target_columns TEXT[],
-    configuration JSONB,
-    execution_order INTEGER
-);
+#### Transformation System Architecture:
+```typescript
+// Detector finds transformations
+const detector = new TransformationDetector(sourceColumns, targetColumns)
+const transformations = detector.detectTransformations()
+
+// Engine applies transformations
+const result = await TransformationEngine.transform(
+  sourceRow,
+  transformation.sourceColumns,
+  transformation.config
+)
 ```
 
-#### Smart Name Splitting Logic:
-- Handles "Last, First" format
-- Splits on space for "First Last" format
-- Handles middle names by grouping with last name
-- Provides empty string defaults
+#### 405 Error Debugging Status:
+- Endpoint URL: `/api/jobs/[id]/process`
+- Method: POST
+- Works: `curl -X POST http://localhost:3000/api/jobs/test123/process`
+- Fails: Production Vercel deployment
+- Current exports in route:
+  ```typescript
+  export const runtime = 'nodejs'
+  export const dynamic = 'force-dynamic'
+  export async function OPTIONS(request) { ... }
+  export async function POST(request, { params }) { ... }
+  ```
 
-### Next Priority Tasks
+### Next Steps for 405 Error Resolution
 
-1. **Fix JSON Parsing Error**
-   - Debug ProcessingStep component
-   - Ensure proper response handling
-   - Add better error messages
+1. **Check Vercel Logs**
+   - Look for function execution errors
+   - Check if the route is being recognized
+   - Verify middleware isn't blocking
 
-2. **Complete Transformation UI**
-   - Add transformation configuration modal
-   - Allow users to customize split behavior
-   - Preview transformation results
+2. **Alternative Approaches to Try**
+   - Move processing logic to non-dynamic route (e.g., `/api/process-job`)
+   - Use query parameters instead of dynamic route
+   - Check if Vercel has specific configuration requirements
 
-3. **Implement Additional Transformations**
-   - Date/time combinations
-   - Phone number formatting
-   - Address splitting
-   - Custom regex patterns
+3. **Debugging Information Added**
+   - Enhanced console logging shows:
+     - Response status and statusText
+     - Response headers
+     - Full response body
+   - This will help identify the exact issue
 
-4. **Test End-to-End Flow**
-   - Upload → Map → Transform → Process → Download
-   - Verify all data integrity
-   - Handle edge cases
+### Environment Details
+- Next.js: 14.2.21
+- Node.js runtime on Vercel
+- Supabase for backend services
+- Files stored in `job-files` bucket
 
-### Environment & Configuration
-- Supabase Storage bucket: `job-files`
-- Transformation types: split, combine, format, extract, conditional
-- Name splitting: Automatic for "Name" → "First Name" mappings
+### Critical Code Patterns
+
+#### Working API Route (for comparison):
+```typescript
+// /api/process/csv/route.ts - WORKS
+export async function POST(request: NextRequest) {
+  const body = await request.json()
+  // ... processing logic
+}
+```
+
+#### Problematic API Route:
+```typescript
+// /api/jobs/[id]/process/route.ts - 405 ERROR
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  // ... processing logic
+}
+```
 
 ### Session Metrics
-- Commits: 8
-- Major bugs fixed: 2 (React rendering, UI direction)
-- New features: 1 (Transformation system)
-- Files created: 5 (transformation system)
-- Build attempts: 3 (all successful)
+- Commits: 12
+- Major features: 2 (Transformation system, UI improvements)
+- Bug fixes attempted: 5+ (405 error remains)
+- Libraries added: 2 (humanparser, fuse.js)
 
-### Critical Notes for Next Session
-1. The transformation engine is built but only name splitting is integrated
-2. The UI shows transformation will happen but doesn't allow customization
-3. The JSON parsing error in processing needs immediate attention
-4. Consider adding transformation templates for common patterns
+### IMPORTANT: Next Session Must Address
+1. **405 Error is blocking entire processing flow**
+2. Consider alternative routing strategy if current approach continues to fail
+3. May need to check Vercel project settings or contact support
+4. All other features are complete and working locally
