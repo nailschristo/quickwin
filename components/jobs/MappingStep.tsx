@@ -320,64 +320,98 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
                   mappings[file.fileId]?.[schemaCol.name]?.source === sourceColumn
                 )
                 
+                // Check if this is a name field that will be split
+                const isNameSplitting = sourceColumn.toLowerCase() === 'name' && 
+                  mappedSchemaColumn?.name.toLowerCase().includes('first')
+                
+                // Find last name column if name is being split
+                const lastNameColumn = isNameSplitting ? 
+                  schemaColumns.find(col => col.name.toLowerCase().includes('last') && col.name.toLowerCase().includes('name')) : 
+                  null
+                
                 return (
-                  <div key={sourceColumn} className="grid grid-cols-3 gap-4 items-center py-2 border-b last:border-0">
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">{sourceColumn}</span>
-                      {sourceColumn.toLowerCase() === 'name' && 
-                       mappedSchemaColumn?.name.toLowerCase().includes('first') && (
-                        <span className="block text-xs text-amber-600 mt-0.5 flex items-center">
-                          <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  <div key={sourceColumn} className={`py-3 px-3 rounded-lg ${isNameSplitting ? 'bg-blue-50 border border-blue-200' : 'border-b'} last:border-0`}>
+                    <div className="grid grid-cols-3 gap-4 items-center">
+                      <div>
+                        <span className="text-sm font-medium text-gray-900">{sourceColumn}</span>
+                      </div>
+                      <div className="text-center">
+                        {isNameSplitting ? (
+                          <div className="flex flex-col items-center">
+                            <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                            <span className="text-xs text-blue-600 mt-1">splits to</span>
+                          </div>
+                        ) : (
+                          <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                           </svg>
-                          Will be split into first/last names
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-center">
-                      <svg className="h-5 w-5 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <select
-                        value={mappedSchemaColumn?.name || ''}
-                        onChange={(e) => {
-                          // First, clear any previous mapping for this source column
-                          const newMappings = { ...mappings }
-                          if (!newMappings[file.fileId]) newMappings[file.fileId] = {}
-                          
-                          // Clear old mapping
-                          Object.keys(newMappings[file.fileId]).forEach(schemaCol => {
-                            if (newMappings[file.fileId][schemaCol]?.source === sourceColumn) {
-                              delete newMappings[file.fileId][schemaCol]
-                            }
-                          })
-                          
-                          // Set new mapping
-                          if (e.target.value) {
-                            newMappings[file.fileId][e.target.value] = {
-                              source: sourceColumn,
-                              confidence: 1.0 // Manual mapping
-                            }
-                          }
-                          
-                          setMappings(newMappings)
-                        }}
-                        className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                      >
-                        <option value="">-- Not mapped --</option>
-                        {schemaColumns.map((schemaCol) => (
-                          <option key={schemaCol.name} value={schemaCol.name}>
-                            {schemaCol.name}
-                          </option>
-                        ))}
-                      </select>
-                      {mappedSchemaColumn && mappings[file.fileId]?.[mappedSchemaColumn.name] && (
-                        <span className={`text-xs ${getConfidenceColor(mappings[file.fileId][mappedSchemaColumn.name].confidence)}`}>
-                          {Math.round(mappings[file.fileId][mappedSchemaColumn.name].confidence * 100)}%
-                        </span>
-                      )}
+                        )}
+                      </div>
+                      <div>
+                        {isNameSplitting ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2 bg-white rounded-md px-3 py-2 border border-blue-300">
+                              <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              <span className="text-sm font-medium text-gray-900">First Name</span>
+                              <span className="text-xs text-green-600 ml-auto">✓</span>
+                            </div>
+                            {lastNameColumn && (
+                              <div className="flex items-center space-x-2 bg-white rounded-md px-3 py-2 border border-blue-300">
+                                <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                <span className="text-sm font-medium text-gray-900">Last Name</span>
+                                <span className="text-xs text-green-600 ml-auto">✓</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <select
+                              value={mappedSchemaColumn?.name || ''}
+                              onChange={(e) => {
+                                // First, clear any previous mapping for this source column
+                                const newMappings = { ...mappings }
+                                if (!newMappings[file.fileId]) newMappings[file.fileId] = {}
+                                
+                                // Clear old mapping
+                                Object.keys(newMappings[file.fileId]).forEach(schemaCol => {
+                                  if (newMappings[file.fileId][schemaCol]?.source === sourceColumn) {
+                                    delete newMappings[file.fileId][schemaCol]
+                                  }
+                                })
+                                
+                                // Set new mapping
+                                if (e.target.value) {
+                                  newMappings[file.fileId][e.target.value] = {
+                                    source: sourceColumn,
+                                    confidence: 1.0 // Manual mapping
+                                  }
+                                }
+                                
+                                setMappings(newMappings)
+                              }}
+                              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                            >
+                              <option value="">-- Not mapped --</option>
+                              {schemaColumns.map((schemaCol) => (
+                                <option key={schemaCol.name} value={schemaCol.name}>
+                                  {schemaCol.name}
+                                </option>
+                              ))}
+                            </select>
+                            {mappedSchemaColumn && mappings[file.fileId]?.[mappedSchemaColumn.name] && (
+                              <span className={`text-xs ${getConfidenceColor(mappings[file.fileId][mappedSchemaColumn.name].confidence)}`}>
+                                {Math.round(mappings[file.fileId][mappedSchemaColumn.name].confidence * 100)}%
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )
@@ -387,18 +421,37 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
         ))}
       </div>
 
-      {/* AI Assistance Note */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-md p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
+      {/* AI Assistance and Transformation Note */}
+      <div className="mt-6 space-y-4">
+        {detectedColumns.some(file => file.columns.some((col: string) => col.toLowerCase() === 'name')) && (
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h4 className="text-sm font-medium text-blue-900">Smart Transformations Detected</h4>
+                <p className="text-sm text-blue-800 mt-1">
+                  We&apos;ve detected that your &quot;Name&quot; column will be automatically split into First Name and Last Name during processing.
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="ml-3">
-            <p className="text-sm text-blue-800">
-              AI-powered mapping suggestions are shown with confidence scores. Review carefully before processing.
-            </p>
+        )}
+        <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-gray-700">
+                AI-powered mapping suggestions are shown with confidence scores. Review and adjust as needed.
+              </p>
+            </div>
           </div>
         </div>
       </div>
