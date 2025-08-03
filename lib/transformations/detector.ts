@@ -26,8 +26,9 @@ export class TransformationDetector {
     // Set up fuzzy search for column matching
     const fuseOptions = {
       keys: ['name'],
-      threshold: 0.4,
-      includeScore: true
+      threshold: 0.2, // Stricter matching to avoid false positives
+      includeScore: true,
+      shouldSort: true
     }
     
     this.sourceFuse = new Fuse(
@@ -85,11 +86,16 @@ export class TransformationDetector {
     }
     
     // Pattern 2: First Name + Last Name -> Full Name (combine)
+    // Only detect if we have BOTH first and last in source, and a full name in target
     const sourceFirstNames = this.findColumns(this.sourceColumns, ['first name', 'firstname', 'given name'])
     const sourceLastNames = this.findColumns(this.sourceColumns, ['last name', 'lastname', 'surname'])
     const targetFullNames = this.findColumns(this.targetColumns, ['name', 'full name', 'fullname', 'customer name'])
     
-    if (sourceFirstNames.length > 0 && sourceLastNames.length > 0 && targetFullNames.length > 0) {
+    // Make sure we're not confusing with the reverse pattern
+    const targetHasFirstName = this.findColumns(this.targetColumns, ['first name', 'firstname']).length > 0
+    const targetHasLastName = this.findColumns(this.targetColumns, ['last name', 'lastname']).length > 0
+    
+    if (sourceFirstNames.length > 0 && sourceLastNames.length > 0 && targetFullNames.length > 0 && !targetHasFirstName && !targetHasLastName) {
       transformations.push({
         type: 'combine',
         sourceColumns: [sourceFirstNames[0].item.name, sourceLastNames[0].item.name],
@@ -229,9 +235,9 @@ export class TransformationDetector {
     for (const pattern of patterns) {
       const matches = fuse.search(pattern)
       if (matches.length > 0) {
-        // Only add if not already in results
+        // Only add if not already in results and has good confidence
         const existingIndex = results.findIndex(r => r.item.index === matches[0].item.index)
-        if (existingIndex === -1) {
+        if (existingIndex === -1 && (matches[0].score || 0) < 0.3) { // Only accept good matches
           results.push(matches[0])
         }
       }

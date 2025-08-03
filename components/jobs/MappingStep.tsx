@@ -336,7 +336,9 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
                 
                 // Find any transformations involving this source column
                 const relevantTransformations = detectedTransformations.filter(t =>
-                  t.sourceColumns.includes(sourceColumn)
+                  t.sourceColumns.includes(sourceColumn) &&
+                  // For split transformations, check if we're actually mapping to one of the target columns
+                  (t.type !== 'split' || (mappedSchemaColumn && t.targetColumns.includes(mappedSchemaColumn.name)))
                 )
                 
                 // Get the most relevant transformation (highest confidence)
