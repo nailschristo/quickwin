@@ -125,26 +125,28 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
     
     setDownloading(true)
     try {
+      // Get signed URL from our API
       const response = await fetch(downloadUrl)
       
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Download failed:', response.status, errorText)
-        throw new Error(`Download failed: ${response.status}`)
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Download failed:', response.status, errorData)
+        throw new Error(errorData.error || `Download failed: ${response.status}`)
       }
       
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
+      const { url } = await response.json()
+      
+      // Use the signed URL to trigger download
       const a = document.createElement('a')
       a.href = url
       a.download = `${jobData.schemaName || 'QuickWin'}_merged_${new Date().toISOString().split('T')[0]}.csv`
+      a.target = '_blank'
       document.body.appendChild(a)
       a.click()
-      window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
     } catch (error: any) {
       console.error('Download error:', error)
-      alert('Failed to download file. Please try again.')
+      alert(error.message || 'Failed to download file. Please try again.')
     } finally {
       setDownloading(false)
     }
