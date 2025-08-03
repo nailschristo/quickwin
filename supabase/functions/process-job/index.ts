@@ -152,20 +152,37 @@ serve(async (req) => {
             if (mapping.transformation_config && mapping.transformation_config.type === 'split') {
               // Apply split transformation
               const sourceValue = sourceRow[mapping.source_column] || ''
+              const config = mapping.transformation_config.config
               
-              if (mapping.transformation_config.config && mapping.transformation_config.config.type === 'name') {
-                // Name splitting transformation
-                const names = sourceValue.trim().split(/\s+/)
-                if (schemaCol.name.toLowerCase().includes('first')) {
-                  targetRow[schemaCol.name] = names[0] || ''
-                } else if (schemaCol.name.toLowerCase().includes('last')) {
-                  targetRow[schemaCol.name] = names.slice(1).join(' ') || ''
+              if (config && config.parts) {
+                // Use the parts configuration to determine how to split
+                const delimiter = config.delimiter || ' '
+                const parts = config.trim ? sourceValue.trim().split(delimiter) : sourceValue.split(delimiter)
+                
+                // Find the part configuration for this target column
+                const partConfig = config.parts.find((p: any) => p.targetColumn === schemaCol.name)
+                
+                if (partConfig) {
+                  let index = partConfig.index
+                  
+                  // Handle negative indices (e.g., -1 for last element)
+                  if (index < 0) {
+                    index = parts.length + index
+                  }
+                  
+                  targetRow[schemaCol.name] = parts[index] || partConfig.defaultValue || ''
+                } else {
+                  // No part config for this column, leave empty
+                  targetRow[schemaCol.name] = ''
                 }
               } else {
-                // Generic split - just use simple space split
-                const parts = sourceValue.split(' ')
-                const targetIndex = mapping.transformation_config.config?.targetIndex || 0
-                targetRow[schemaCol.name] = parts[targetIndex] || ''
+                // Fallback: simple split logic
+                const parts = sourceValue.trim().split(/\s+/)
+                if (schemaCol.name.toLowerCase().includes('first')) {
+                  targetRow[schemaCol.name] = parts[0] || ''
+                } else if (schemaCol.name.toLowerCase().includes('last')) {
+                  targetRow[schemaCol.name] = parts.slice(1).join(' ') || ''
+                }
               }
             } else {
               // Direct mapping - no transformation
@@ -177,7 +194,16 @@ serve(async (req) => {
         }
         
         if (rowIdx === 1) {
+          console.log('First source row:', sourceRow)
           console.log('First target row:', targetRow)
+          
+          // Log transformation details for debugging
+          for (const mapping of fileMappings) {
+            if (mapping.transformation_config) {
+              console.log('Transformation config for', mapping.source_column, '->', mapping.target_column, ':', 
+                JSON.stringify(mapping.transformation_config, null, 2))
+            }
+          }
         }
         
         processedRows.push(targetRow)
