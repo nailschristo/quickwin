@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export async function GET(request: NextRequest) {
+  console.log('Download route called')
+  
   try {
     const searchParams = request.nextUrl.searchParams
     const jobId = searchParams.get('jobId')
+    console.log('Job ID:', jobId)
     
     if (!jobId) {
       return NextResponse.json({ error: 'Missing jobId parameter' }, { status: 400 })
@@ -14,18 +17,24 @@ export async function GET(request: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
+    console.log('Env check:', { hasUrl: !!supabaseUrl, hasKey: !!supabaseKey })
+    
     if (!supabaseUrl || !supabaseKey) {
       return NextResponse.json({ error: 'Missing environment variables' }, { status: 500 })
     }
     
     const supabase = createSupabaseClient(supabaseUrl, supabaseKey)
+    console.log('Supabase client created')
 
     // Get the job with output file path
+    console.log('Querying job:', jobId)
     const { data: job, error } = await supabase
       .from('jobs')
       .select('output_file_path, user_id')
       .eq('id', jobId)
       .single()
+
+    console.log('Job query result:', { job, error })
 
     if (error || !job) {
       return NextResponse.json({ 
