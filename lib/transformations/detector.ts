@@ -70,11 +70,21 @@ export class TransformationDetector {
     const transformations: DetectedTransformation[] = []
     
     // Pattern 1: Full Name -> First Name + Last Name (split)
+    // IMPORTANT: Only detect if source has a combined name field, NOT first/last name fields
     const fullNameColumns = this.findColumns(this.sourceColumns, ['name', 'full name', 'fullname', 'customer name', 'person name'])
     const firstNameColumns = this.findColumns(this.targetColumns, ['first name', 'firstname', 'given name', 'givenname'])
     const lastNameColumns = this.findColumns(this.targetColumns, ['last name', 'lastname', 'surname', 'family name'])
     
-    if (fullNameColumns.length > 0 && firstNameColumns.length > 0 && lastNameColumns.length > 0) {
+    // Make sure source doesn't already have first/last name columns
+    const sourceHasFirstName = this.sourceColumns.some(col => 
+      col.toLowerCase().includes('first') && col.toLowerCase().includes('name')
+    )
+    const sourceHasLastName = this.sourceColumns.some(col => 
+      col.toLowerCase().includes('last') && col.toLowerCase().includes('name')
+    )
+    
+    if (fullNameColumns.length > 0 && firstNameColumns.length > 0 && lastNameColumns.length > 0 && 
+        !sourceHasFirstName && !sourceHasLastName) {
       transformations.push({
         type: 'split',
         sourceColumns: [fullNameColumns[0].item.name],
@@ -235,10 +245,25 @@ export class TransformationDetector {
     for (const pattern of patterns) {
       const matches = fuse.search(pattern)
       if (matches.length > 0) {
-        // Only add if not already in results and has good confidence
-        const existingIndex = results.findIndex(r => r.item.index === matches[0].item.index)
-        if (existingIndex === -1 && (matches[0].score || 0) < 0.3) { // Only accept good matches
-          results.push(matches[0])
+        // Filter out bad matches
+        const goodMatches = matches.filter(match => {
+          const colName = match.item.name.toLowerCase()
+          const patternLower = pattern.toLowerCase()
+          
+          // Prevent "Last Name" from matching "name" pattern
+          if (patternLower === 'name' && (colName.includes('first') || colName.includes('last'))) {
+            return false
+          }
+          
+          // Require very good match score
+          return (match.score || 0) < 0.2
+        })
+        
+        if (goodMatches.length > 0) {
+          const existingIndex = results.findIndex(r => r.item.index === goodMatches[0].item.index)
+          if (existingIndex === -1) {
+            results.push(goodMatches[0])
+          }
         }
       }
     }

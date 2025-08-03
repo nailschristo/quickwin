@@ -335,11 +335,22 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
                 )
                 
                 // Find any transformations involving this source column
-                const relevantTransformations = detectedTransformations.filter(t =>
-                  t.sourceColumns.includes(sourceColumn) &&
+                const relevantTransformations = detectedTransformations.filter(t => {
+                  // Must include this source column
+                  if (!t.sourceColumns.includes(sourceColumn)) return false
+                  
                   // For split transformations, check if we're actually mapping to one of the target columns
-                  (t.type !== 'split' || (mappedSchemaColumn && t.targetColumns.includes(mappedSchemaColumn.name)))
-                )
+                  if (t.type === 'split') {
+                    // Don't show split for columns that already specify first/last
+                    const colLower = sourceColumn.toLowerCase()
+                    if (colLower.includes('first') || colLower.includes('last')) return false
+                    
+                    // Must be mapping to one of the split targets
+                    return mappedSchemaColumn && t.targetColumns.includes(mappedSchemaColumn.name)
+                  }
+                  
+                  return true
+                })
                 
                 // Get the most relevant transformation (highest confidence)
                 const transformation = relevantTransformations.length > 0 ?
