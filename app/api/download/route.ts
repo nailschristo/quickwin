@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,17 +10,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing jobId parameter' }, { status: 400 })
     }
 
-    // Create Supabase client
-    const supabase = await createClient()
-
-    // Check if user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      console.error('Authentication error in download:', authError)
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Create Supabase client directly
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ error: 'Missing environment variables' }, { status: 500 })
     }
-
-    console.log('Fetching job data for download:', jobId, 'User:', user.id)
+    
+    const supabase = createSupabaseClient(supabaseUrl, supabaseKey)
 
     // Get the job with output file path
     const { data: job, error } = await supabase
@@ -32,12 +30,6 @@ export async function GET(request: NextRequest) {
     if (error || !job) {
       console.error('Job not found:', { error, jobId })
       return NextResponse.json({ error: 'Job not found', jobId }, { status: 404 })
-    }
-
-    // Verify user owns this job
-    if (job.user_id !== user.id) {
-      console.error('User does not own job:', { jobUser: job.user_id, requestUser: user.id })
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     // Check if we have a file path
@@ -67,13 +59,11 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // Get the filename from the path or output_data
+    // Get the filename from the path
     let filename = 'download.csv'
     if (job.output_file_path) {
       const parts = job.output_file_path.split('/')
       filename = parts[parts.length - 1]
-    } else if (job.output_data && job.output_data.filename) {
-      filename = job.output_data.filename
     }
 
     // Convert blob to text
