@@ -130,20 +130,41 @@ serve(async (req) => {
     const outputFileName = `${job.schemas.name}_merged_${new Date().toISOString().split('T')[0]}.csv`
     const outputPath = `${jobId}/output/${outputFileName}`
     
-    const { error: uploadError } = await supabase
+    console.log('Uploading file to path:', outputPath)
+    
+    // Create a service role client that bypasses RLS
+    const { data: uploadData, error: uploadError } = await supabase
       .storage
       .from('job-files')
-      .upload(outputPath, new Blob([csvContent], { type: 'text/csv' }), {
+      .upload(outputPath, csvContent, {
         contentType: 'text/csv',
         upsert: true
       })
 
     if (uploadError) {
-      throw uploadError
+      console.error('Upload error:', uploadError)
+      // Try with direct approach
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const { data: retryData, error: retryError } = await supabase
+        .storage
+        .from('job-files')
+        .upload(outputPath, blob, {
+          contentType: 'text/csv',
+          upsert: true
+        })
+      
+      if (retryError) {
+        console.error('Retry upload error:', retryError)
+        throw retryError
+      }
     }
+    
+    console.log('File uploaded successfully to:', outputPath)
 
     // Update job status
-    await supabase
+    console.log('Updating job with output_file_path:', outputPath)
+    
+    const { error: updateError } = await supabase
       .from('jobs')
       .update({
         status: 'completed',
@@ -155,6 +176,11 @@ serve(async (req) => {
         }
       })
       .eq('id', jobId)
+    
+    if (updateError) {
+      console.error('Job update error:', updateError)
+      throw updateError
+    }
 
     return new Response(
       JSON.stringify({ 
