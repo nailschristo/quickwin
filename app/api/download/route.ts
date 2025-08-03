@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,14 +10,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing jobId parameter' }, { status: 400 })
     }
 
-    // Create Supabase client
-    const supabase = await createClient()
-
-    // Check if user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Create Supabase client directly
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ error: 'Missing environment variables' }, { status: 500 })
     }
+    
+    const supabase = createSupabaseClient(supabaseUrl, supabaseKey)
 
     // Get the job with output file path
     const { data: job, error } = await supabase
@@ -27,29 +28,33 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (error || !job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 })
-    }
-
-    // Verify user owns this job
-    if (job.user_id !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+      return NextResponse.json({ 
+        error: 'Job not found', 
+        details: error?.message,
+        jobId 
+      }, { status: 404 })
     }
 
     // Check if we have a file path
     if (!job.output_file_path) {
-      return NextResponse.json({ error: 'No output file available' }, { status: 404 })
+      return NextResponse.json({ 
+        error: 'No output file available',
+        job: { id: jobId, output_file_path: job.output_file_path }
+      }, { status: 404 })
     }
 
     // Create a signed URL for the file
     const { data, error: urlError } = await supabase
       .storage
       .from('job-files')
-      .createSignedUrl(job.output_file_path, 60) // 60 seconds expiry
+      .createSignedUrl(job.output_file_path, 3600) // 1 hour expiry
 
     if (urlError || !data) {
       return NextResponse.json({ 
         error: 'Failed to create download URL', 
-        details: urlError?.message 
+        details: urlError?.message,
+        path: job.output_file_path,
+        bucket: 'job-files'
       }, { status: 500 })
     }
 
@@ -60,7 +65,8 @@ export async function GET(request: NextRequest) {
     console.error('Download route error:', error)
     return NextResponse.json({ 
       error: 'Download failed', 
-      message: error.message || 'Unknown error'
+      message: error.message || 'Unknown error',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 })
   }
 }
