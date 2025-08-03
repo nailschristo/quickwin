@@ -30,9 +30,9 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
           })
         }, 500)
 
-        // Get Supabase URL and anon key
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        // Get Supabase URL and anon key from window
+        const supabaseUrl = 'https://zkcvhunldlpziwjhcjqt.supabase.co'
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprY3ZodW5sZGxweml3amhjanF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMDQ2NjMsImV4cCI6MjA2OTY4MDY2M30.j1u8PB2GbeKtArEneD6GCkbsp_qtReLKH5kznIVbW9o'
 
         // Call the Supabase Edge Function
         const response = await fetch(`${supabaseUrl}/functions/v1/process-job`, {
@@ -75,10 +75,14 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
         clearInterval(progressInterval)
         setProgress(100)
         setStatus('completed')
-        setRowsProcessed(12) // TODO: Get actual count from API
+        setRowsProcessed(result.rows_processed || 0)
         
-        // Set download URL for the processed job
-        setDownloadUrl(`/api/jobs/${jobData.jobId}/download`)
+        // Generate download URL directly from Supabase Storage
+        const outputPath = result.output_path
+        if (outputPath) {
+          const downloadUrl = `${supabaseUrl}/storage/v1/object/public/job-files/${outputPath}`
+          setDownloadUrl(downloadUrl)
+        }
       } catch (error: any) {
         setStatus('failed')
         setError(error.message || 'An error occurred while processing your files.')
