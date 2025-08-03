@@ -3,43 +3,50 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const path = searchParams.get('path')
+    const jobId = searchParams.get('jobId')
     
-    if (!path) {
-      return NextResponse.json({ error: 'Missing path parameter' }, { status: 400 })
+    if (!jobId) {
+      return NextResponse.json({ error: 'Missing jobId parameter' }, { status: 400 })
     }
 
     // Import and create Supabase client
     const { createClient } = await import('@/lib/supabase/server')
     const supabase = await createClient()
 
-    console.log('Attempting to download file from path:', path)
+    console.log('Fetching job data for download:', jobId)
 
-    // Download the file
-    const { data, error } = await supabase
-      .storage
-      .from('job-files')
-      .download(path)
+    // Get the job with output data
+    const { data: job, error } = await supabase
+      .from('jobs')
+      .select('output_data, output_file_path')
+      .eq('id', jobId)
+      .single()
 
-    if (error) {
-      console.error('Download error:', error)
-      console.error('Path attempted:', path)
-      return NextResponse.json({ error: error.message || 'File not found' }, { status: 404 })
+    if (error || !job || !job.output_data) {
+      console.error('Job not found or no output data:', error)
+      return NextResponse.json({ error: 'No output data found' }, { status: 404 })
     }
 
-    if (!data) {
-      console.error('No data returned for path:', path)
-      return NextResponse.json({ error: 'No file data' }, { status: 404 })
-    }
+    // Generate CSV from output data
+    const { headers, rows, filename } = job.output_data
+    const csvLines = [
+      headers.join(','),
+      ...rows.map((row: any) => 
+        headers.map((header: string) => {
+          const value = row[header] || ''
+          // Escape quotes and wrap in quotes if contains comma or quotes
+          const escaped = String(value).replace(/"/g, '""')
+          return escaped.includes(',') || escaped.includes('"') ? `"${escaped}"` : escaped
+        }).join(',')
+      )
+    ]
+    const csvContent = csvLines.join('\n')
 
-    // Get filename from path
-    const filename = path.split('/').pop() || 'download.csv'
-
-    // Return the file with appropriate headers
-    return new NextResponse(data, {
+    // Return the CSV file
+    return new NextResponse(csvContent, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Disposition': `attachment; filename="${filename || 'download.csv'}"`,
       },
     })
   } catch (error: any) {

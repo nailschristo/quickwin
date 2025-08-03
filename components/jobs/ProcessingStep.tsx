@@ -77,12 +77,9 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
         setStatus('completed')
         setRowsProcessed(result.rows_processed || 0)
         
-        // Generate download URL using our API route
-        const outputPath = result.output_path
-        if (outputPath) {
-          const downloadUrl = `/api/download?path=${encodeURIComponent(outputPath)}`
-          setDownloadUrl(downloadUrl)
-        }
+        // Generate download URL using our API route with jobId
+        const downloadUrl = `/api/download?jobId=${jobData.jobId}`
+        setDownloadUrl(downloadUrl)
       } catch (error: any) {
         setStatus('failed')
         setError(error.message || 'An error occurred while processing your files.')
