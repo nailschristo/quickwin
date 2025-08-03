@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { smartNameSplit } from '@/lib/transformations/common'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 async function processCSVFile(fileId: string, jobId: string, supabase: any) {
   // Get file record
@@ -99,11 +100,17 @@ async function processCSVFile(fileId: string, jobId: string, supabase: any) {
   }
 }
 
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, { status: 200 })
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   console.log('Process API called with jobId:', params.id)
+  console.log('Request method:', request.method)
+  console.log('Request headers:', Object.fromEntries(request.headers.entries()))
   
   try {
     if (!params || !params.id) {

@@ -34,19 +34,26 @@ export default function ProcessingStep({ jobData, onBack }: ProcessingStepProps)
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-          }
+          },
+          body: JSON.stringify({})
         })
 
         const responseText = await response.text()
         
         if (!response.ok) {
           let errorMessage = 'Processing failed'
+          console.error('Process API failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries()),
+            responseText
+          })
           try {
             const error = JSON.parse(responseText)
             errorMessage = error.error || errorMessage
           } catch (e) {
             // If JSON parsing fails, use the text
-            errorMessage = responseText || errorMessage
+            errorMessage = `${response.status} ${response.statusText}: ${responseText}` || errorMessage
           }
           throw new Error(errorMessage)
         }
