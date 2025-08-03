@@ -104,7 +104,7 @@ export async function GET(
           if (sourceMapped && transformation.config) {
             try {
               // Apply transformation
-              const result = await TransformationEngine.transform(
+              const result = TransformationEngine.transform(
                 sourceRow,
                 transformation.sourceColumns,
                 transformation.config

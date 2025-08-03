@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { smartNameSplit } from '@/lib/transformations/common'
 
+export const runtime = 'nodejs'
+
 async function processCSVFile(fileId: string, jobId: string, supabase: any) {
   // Get file record
   const { data: file } = await supabase
@@ -101,6 +103,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  console.log('Process API called with jobId:', params.id)
+  
   try {
     const jobId = params.id
 
@@ -178,6 +182,7 @@ export async function POST(
 
   } catch (error: any) {
     console.error('Job processing error:', error)
+    console.error('Error stack:', error.stack)
     
     return NextResponse.json(
       { error: error.message || 'Failed to process job' },
