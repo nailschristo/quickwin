@@ -169,16 +169,38 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
         const suggestedMappings: any = {}
         detectedCols.forEach((file) => {
           suggestedMappings[file.fileId] = {}
-          schemaData?.forEach((schemaCol: any) => {
-            // Simple fuzzy matching logic
-            const match = file.columns.find((col: string) => 
-              col.toLowerCase().includes(schemaCol.name.toLowerCase().split(' ')[0]) ||
-              schemaCol.name.toLowerCase().includes(col.toLowerCase())
+          
+          // For each source column, try to find a matching schema column
+          file.columns.forEach((sourceCol: string) => {
+            const sourceLower = sourceCol.toLowerCase()
+            
+            // Check for exact matches first
+            let bestMatch = schemaData?.find((schemaCol: any) => 
+              schemaCol.name.toLowerCase() === sourceLower
             )
-            if (match) {
-              suggestedMappings[file.fileId][schemaCol.name] = {
-                source: match,
-                confidence: 0.85
+            
+            // If no exact match, try fuzzy matching
+            if (!bestMatch) {
+              // Special case: combined "Name" field that could map to First/Last Name
+              if (sourceLower === 'name') {
+                // We'll handle this in processing - for now, map to First Name
+                bestMatch = schemaData?.find((schemaCol: any) => 
+                  schemaCol.name.toLowerCase() === 'first name'
+                )
+              } else {
+                // General fuzzy matching
+                bestMatch = schemaData?.find((schemaCol: any) => {
+                  const schemaLower = schemaCol.name.toLowerCase()
+                  return sourceLower.includes(schemaLower.split(' ')[0]) ||
+                         schemaLower.includes(sourceLower.split(' ')[0])
+                })
+              }
+            }
+            
+            if (bestMatch) {
+              suggestedMappings[file.fileId][bestMatch.name] = {
+                source: sourceCol,
+                confidence: sourceLower === bestMatch.name.toLowerCase() ? 1.0 : 0.85
               }
             }
           })
@@ -293,33 +315,70 @@ export default function MappingStep({ jobData, updateJobData, onNext, onBack }: 
               {file.file}
             </h3>
             <div className="space-y-2">
-              {schemaColumns.map((schemaCol) => (
-                <div key={schemaCol.name} className="grid grid-cols-3 gap-4 items-center py-2 border-b last:border-0">
-                  <div>
-                    <span className="text-sm font-medium text-gray-900">{schemaCol.name}</span>
+              {file.columns.map((sourceColumn) => {
+                // Find which schema column this source column is mapped to
+                const mappedSchemaColumn = schemaColumns.find(schemaCol => 
+                  mappings[file.fileId]?.[schemaCol.name]?.source === sourceColumn
+                )
+                
+                return (
+                  <div key={sourceColumn} className="grid grid-cols-3 gap-4 items-center py-2 border-b last:border-0">
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">{sourceColumn}</span>
+                      {sourceColumn.toLowerCase() === 'name' && (
+                        <span className="block text-xs text-amber-600 mt-0.5">
+                          Will be split into first/last names
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-center">
+                      <svg className="h-5 w-5 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <select
+                        value={mappedSchemaColumn?.name || ''}
+                        onChange={(e) => {
+                          // First, clear any previous mapping for this source column
+                          const newMappings = { ...mappings }
+                          if (!newMappings[file.fileId]) newMappings[file.fileId] = {}
+                          
+                          // Clear old mapping
+                          Object.keys(newMappings[file.fileId]).forEach(schemaCol => {
+                            if (newMappings[file.fileId][schemaCol]?.source === sourceColumn) {
+                              delete newMappings[file.fileId][schemaCol]
+                            }
+                          })
+                          
+                          // Set new mapping
+                          if (e.target.value) {
+                            newMappings[file.fileId][e.target.value] = {
+                              source: sourceColumn,
+                              confidence: 1.0 // Manual mapping
+                            }
+                          }
+                          
+                          setMappings(newMappings)
+                        }}
+                        className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                      >
+                        <option value="">-- Not mapped --</option>
+                        {schemaColumns.map((schemaCol) => (
+                          <option key={schemaCol.name} value={schemaCol.name}>
+                            {schemaCol.name}
+                          </option>
+                        ))}
+                      </select>
+                      {mappedSchemaColumn && mappings[file.fileId]?.[mappedSchemaColumn.name] && (
+                        <span className={`text-xs ${getConfidenceColor(mappings[file.fileId][mappedSchemaColumn.name].confidence)}`}>
+                          {Math.round(mappings[file.fileId][mappedSchemaColumn.name].confidence * 100)}%
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <svg className="h-5 w-5 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <ColumnMappingSelect
-                      key={`mapping-${file.fileId}-${schemaCol.name}`}
-                      fileId={file.fileId}
-                      schemaColumnName={schemaCol.name}
-                      availableColumns={file.columns || []}
-                      value={mappings[file.fileId]?.[schemaCol.name]?.source || ''}
-                      onChange={handleMappingChange}
-                    />
-                    {mappings[file.fileId]?.[schemaCol.name] && (
-                      <span className={`text-xs ${getConfidenceColor(mappings[file.fileId][schemaCol.name].confidence)}`}>
-                        {Math.round(mappings[file.fileId][schemaCol.name].confidence * 100)}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         ))}
