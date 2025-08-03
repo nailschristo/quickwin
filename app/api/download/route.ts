@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   console.log('Download route called')
@@ -13,25 +13,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing jobId parameter' }, { status: 400 })
     }
 
-    // Create Supabase client directly
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    // Create authenticated Supabase client
+    const supabase = await createClient()
     
-    console.log('Env check:', { hasUrl: !!supabaseUrl, hasKey: !!supabaseKey })
-    
-    if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json({ error: 'Missing environment variables' }, { status: 500 })
+    // Verify user is authenticated
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    
-    const supabase = createSupabaseClient(supabaseUrl, supabaseKey)
-    console.log('Supabase client created')
+    console.log('User authenticated:', user.id)
 
-    // Get the job with output file path
-    console.log('Querying job:', jobId)
+    // Get the job with output file path - ensure user owns it
+    console.log('Querying job:', jobId, 'for user:', user.id)
     const { data: job, error } = await supabase
       .from('jobs')
       .select('output_file_path, user_id')
       .eq('id', jobId)
+      .eq('user_id', user.id)
       .single()
 
     console.log('Job query result:', { job, error })
@@ -53,12 +51,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Create a signed URL for the file
+    console.log('Creating signed URL for:', job.output_file_path)
     const { data, error: urlError } = await supabase
       .storage
       .from('job-files')
       .createSignedUrl(job.output_file_path, 3600) // 1 hour expiry
 
     if (urlError || !data) {
+      console.error('Failed to create signed URL:', urlError)
       return NextResponse.json({ 
         error: 'Failed to create download URL', 
         details: urlError?.message,
@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
+    console.log('Signed URL created successfully')
     // Return the signed URL
     return NextResponse.json({ url: data.signedUrl })
     
